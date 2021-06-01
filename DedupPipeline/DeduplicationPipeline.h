@@ -126,18 +126,18 @@ private:
                             r = xd3_encode_memory(dedupTask.buffer+dedupTask.pos, dedupTask.length, tempBlockEntry.block, tempBlockEntry.length, tempBuffer, &deltaSize, dedupTask.length, XD3_COMPLEVEL_1);
                             gettimeofday(&dt2, NULL);
                             deltaTime += (dt2.tv_sec - dt1.tv_sec) * 1000000 + dt2.tv_usec - dt1.tv_usec;
-                            if(r) xdeltaError++;
 
                             if(r != 0 || deltaSize > dedupTask.length){
                                 // no delta
                                 free(tempBuffer);
                                 GlobalMetadataManagerPtr->uniqueAddRecord(writeTask.sha1Fp, dedupTask.fileID);
                                 GlobalMetadataManagerPtr->addSimilarFeature(tempSimilarityFeatures, {writeTask.sha1Fp,
-                                                                                                     fpTableEntry.categoryOrder,
+                                                                                                     (uint32_t)dedupTask.fileID,
                                                                                                      lastCategoryLength,
                                                                                                      dedupTask.length});
                                 writeTask.similarityFeatures = tempSimilarityFeatures;
                                 lastCategoryLength += dedupTask.length + sizeof(BlockHeader);
+                                xdeltaError++;
                             }else{
                                 // add metadata
                                 GlobalMetadataManagerPtr->deltaAddRecord(writeTask.sha1Fp, dedupTask.fileID,
