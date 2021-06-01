@@ -39,6 +39,7 @@ public:
 
     void getStatistics() {
         printf("Deduplicating Duration : %lu\n", duration);
+        printf("Delta duration : %lu\n", deltaTime);
         printf("Unique:%lu, Internal:%lu, Adjacent:%lu, Delta:%lu\n", chunkCounter[0], chunkCounter[1], chunkCounter[2], chunkCounter[3]);
         printf("xdeltaError:%lu\n", xdeltaError);
         printf("Total Length : %lu, Unique Length : %lu, Adjacent Length: %lu, Delta Reduce: %lu, Dedup Ratio : %f\n", totalLength, afterDedupLength, adjacentDuplicates, deltaReduceLength,
@@ -50,7 +51,7 @@ private:
     void deduplicationWorkerCallback() {
         WriteTask writeTask;
 
-        struct timeval t0, t1;
+        struct timeval t0, t1, dt1, dt2;
         std::list <WriteTask> saveList;
         uint8_t *currentTask;
         bool newVersionFlag = true;
@@ -121,7 +122,10 @@ private:
                             // calculate delta
                             uint8_t* tempBuffer = (uint8_t*)malloc(dedupTask.length);
                             usize_t deltaSize;
+                            gettimeofday(&dt1, NULL);
                             r = xd3_encode_memory(dedupTask.buffer+dedupTask.pos, dedupTask.length, tempBlockEntry.block, tempBlockEntry.length, tempBuffer, &deltaSize, dedupTask.length, XD3_COMPLEVEL_1);
+                            gettimeofday(&dt2, NULL);
+                            deltaTime += (dt2.tv_sec - dt1.tv_sec) * 1000000 + dt2.tv_usec - dt1.tv_usec;
                             if(r) xdeltaError++;
 
                             if(r != 0 || deltaSize > dedupTask.length){
@@ -231,6 +235,7 @@ private:
     uint64_t xdeltaError = 0;
 
     uint64_t duration = 0;
+    uint64_t deltaTime = 0;
 
 };
 

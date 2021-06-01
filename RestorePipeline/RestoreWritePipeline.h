@@ -74,6 +74,7 @@ public:
 
     ~RestoreWritePipeline() {
         printf("restore write duration :%lu\n", duration);
+        printf("read time:%lu, decoding time:%lu\n", readTime, decodingTime);
         printf("delta chunks:%lu\n", deltaCounter);
         runningFlag = false;
         condition.notifyAll();
@@ -100,7 +101,7 @@ private:
         uint8_t* baseBuffer = (uint8_t*)malloc(8192);
         uint8_t* oriBuffer = (uint8_t*)malloc(8192);
         usize_t oriSize = 0;
-        struct timeval t0, t1;
+        struct timeval t0, t1, dt1, dt2, rt1, rt2;
 
         FileOperator ff("log", FileOpenType::Write);
         char* buffer = (char*)malloc(1024);
@@ -131,9 +132,15 @@ private:
 
             if(restoreWriteTask->type){
                 deltaCounter++;
+                gettimeofday(&rt1, NULL);
                 pread(fd, baseBuffer, 8192, restoreWriteTask->pos);
+                gettimeofday(&rt2, NULL);
+                readTime += (rt2.tv_sec - rt1.tv_sec) * 1000000 + rt2.tv_usec - rt1.tv_usec;;
 
+                gettimeofday(&dt1, NULL);
                 int r = xd3_decode_memory(restoreWriteTask->buffer, restoreWriteTask->length, baseBuffer, 8192, oriBuffer, &oriSize, 8192, XD3_COMPLEVEL_1);
+                gettimeofday(&dt2, NULL);
+                decodingTime += (dt2.tv_sec - dt1.tv_sec) * 1000000 + dt2.tv_usec - dt1.tv_usec;
                 assert(r==0);
                 if(unlikely(oriSize != 8192)){
                     printf("Error: decompressed chunk's size is %u\n", oriSize);
@@ -177,6 +184,8 @@ private:
     uint64_t deltaCounter = 0, chunkCounter = 0;
 
     uint64_t duration = 0;
+    uint64_t decodingTime = 0;
+    uint64_t readTime = 0;
 
     uint64_t syncCounter = 0;
 };

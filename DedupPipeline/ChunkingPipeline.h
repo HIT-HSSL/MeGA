@@ -15,7 +15,7 @@
 #include "../RollHash/rabin_chunking.h"
 
 DEFINE_string(ChunkingMethod,
-"FastCDC", "chunking method in chunking");
+"Fixed", "chunking method in chunking");
 DEFINE_int32(ExpectSize,
 8192, "average chunk size");
 
