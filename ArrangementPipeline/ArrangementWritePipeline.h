@@ -130,7 +130,7 @@ private:
             }else{
                 BlockHeader* bhPtr = (BlockHeader*)arrangementWriteTask->writeBuffer;
                 activeFileWriter->write(arrangementWriteTask->writeBuffer, arrangementWriteTask->length);
-                if(!bhPtr->type && arrangementWriteTask->length == 8192){
+                if(!bhPtr->type && arrangementWriteTask->length == (8192+sizeof(BlockHeader))){
                     GlobalMetadataManagerPtr->addSimilarFeature(
                             bhPtr->sFeatures,
                             {bhPtr->fp,(uint32_t)classIter+1, offsetPtr, arrangementWriteTask->length});

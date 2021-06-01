@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(MFDedup)
+project(MeGA)
 
 set(CMAKE_CXX_STANDARD 14)
 
@@ -16,4 +16,4 @@ add_subdirectory(gflags-2.2.2)
 
 link_libraries(gflags::gflags isal_crypto pthread crypto jemalloc /home/zxy/edelta_new/libdelta.so)
 
-add_executable(MFDedup main.cpp ${Utility} ${RollHash} ${MetadataManager} ${Pipeline} ${RestorePipeline} ${ArrangementPipeline} ${Rollhash})
+add_executable(MeGA main.cpp ${Utility} ${RollHash} ${MetadataManager} ${Pipeline} ${RestorePipeline} ${ArrangementPipeline} ${Rollhash})
