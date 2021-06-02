@@ -277,6 +277,24 @@ public:
         return 0;
     }
 
+    int similarityTableMerge(){
+        for(auto& item: earlierSimilarityTable.simIndex1){
+            if(item.second.CategoryOrder != 1){
+                item.second.CategoryOrder--;
+            }
+        }
+        for(auto& item: earlierSimilarityTable.simIndex2){
+            if(item.second.CategoryOrder != 1){
+                item.second.CategoryOrder--;
+            }
+        }
+        for(auto& item: earlierSimilarityTable.simIndex3){
+            if(item.second.CategoryOrder != 1){
+                item.second.CategoryOrder--;
+            }
+        }
+    }
+
     // todo:: fix metadata storage
     int save(){
         printf("------------------------Saving index----------------------\n");

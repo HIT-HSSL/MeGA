@@ -38,7 +38,9 @@ public:
         for (uint64_t i = 2; i <= maxVersion; i++) {
             recipeFilesProcessor(i);
         }
-        printf("finish,  the earliest version has been eliminated\n");
+        GlobalMetadataManagerPtr->similarityTableMerge();
+        printf("Similarity Feature Tables have been updated..\n");
+        printf("finish, the earliest version has been eliminated..\n");
     }
 
 private:
