@@ -63,11 +63,11 @@ public:
         headPtr = (BlockHeader *)preloadBuffer;
 
         uint64_t preLoadPos = 0;
-        uint64_t leftLength = readSize - headPtr->length - sizeof(BlockHeader);
+        uint64_t leftLength = readSize;
 
-        while (leftLength > sizeof(BlockHeader) && leftLength > (8192+sizeof(BlockHeader))) {// todo
+        while (leftLength > sizeof(BlockHeader) && leftLength >= (8192+sizeof(BlockHeader))) {// todo
             headPtr = (BlockHeader *) (preloadBuffer + preLoadPos);
-            if(headPtr->length > leftLength) { //todo: fixed size
+            if(headPtr->length+sizeof(BlockHeader) > leftLength) { //todo: fixed size
                 break;
             }else if(!headPtr->type){
                 addRecord(headPtr->fp, preloadBuffer + preLoadPos + sizeof(BlockHeader),

@@ -133,7 +133,7 @@ private:
                 if(!bhPtr->type && arrangementWriteTask->length == (8192+sizeof(BlockHeader))){
                     GlobalMetadataManagerPtr->addSimilarFeature(
                             bhPtr->sFeatures,
-                            {bhPtr->fp,(uint32_t)classIter+1, offsetPtr, arrangementWriteTask->length});
+                            {bhPtr->fp,(uint32_t)classIter+1, offsetPtr, arrangementWriteTask->length-sizeof(BlockHeader)});
                 }
                 offsetPtr += arrangementWriteTask->length;
                 activeChunks++;
