@@ -279,18 +279,24 @@ public:
 
     int similarityTableMerge(){
         for(auto& item: earlierSimilarityTable.simIndex1){
-            if(item.second.CategoryOrder != 1){
+            if(item.second.CategoryOrder >= 3){
                 item.second.CategoryOrder--;
+            }else if(item.second.CategoryOrder == 2){
+                item.second.CategoryOrder = 0;
             }
         }
         for(auto& item: earlierSimilarityTable.simIndex2){
-            if(item.second.CategoryOrder != 1){
+            if(item.second.CategoryOrder >= 3){
                 item.second.CategoryOrder--;
+            }else if(item.second.CategoryOrder == 2){
+                item.second.CategoryOrder = 0;
             }
         }
         for(auto& item: earlierSimilarityTable.simIndex3){
-            if(item.second.CategoryOrder != 1){
+            if(item.second.CategoryOrder >= 3){
                 item.second.CategoryOrder--;
+            }else if(item.second.CategoryOrder == 2){
+                item.second.CategoryOrder = 0;
             }
         }
     }

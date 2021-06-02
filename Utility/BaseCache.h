@@ -14,6 +14,8 @@
 
 #define PreloadSize 2*1024*1024
 
+extern std::string ClassFileAppendPath;
+
 struct BlockEntry {
     uint8_t *block;
     uint64_t length;
@@ -51,8 +53,15 @@ public:
     void loadBaseChunks(const BasePos& basePos){
         gettimeofday(&t0, NULL);
         char pathBuffer[256];
-        uint64_t targetCategory = (currentVersion-2)*(currentVersion-1)/2 + basePos.CategoryOrder;
-        sprintf(pathBuffer, ClassFilePath.data(), targetCategory);
+        uint64_t targetCategory;
+        if(basePos.CategoryOrder){
+            targetCategory = (currentVersion-2)*(currentVersion-1)/2 + basePos.CategoryOrder;
+            sprintf(pathBuffer, ClassFilePath.data(), targetCategory);
+        }else{
+            targetCategory = (currentVersion-2)*(currentVersion-1)/2 + 1;
+            sprintf(pathBuffer, ClassFileAppendPath.data(), targetCategory);
+        }
+
         FileOperator basefile(pathBuffer, FileOpenType::Read);
         basefile.seek(basePos.offset);
         uint64_t readSize = basefile.read(preloadBuffer, PreloadSize);
