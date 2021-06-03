@@ -75,7 +75,7 @@ public:
     ~RestoreWritePipeline() {
         printf("restore write duration :%lu\n", duration);
         printf("read time:%lu, decoding time:%lu\n", readTime, decodingTime);
-        printf("delta chunks:%lu\n", deltaCounter);
+        printf("total chunks:%lu, delta chunks:%lu\n", chunkCounter, deltaCounter);
         runningFlag = false;
         condition.notifyAll();
         worker->join();
@@ -103,8 +103,8 @@ private:
         usize_t oriSize = 0;
         struct timeval t0, t1, dt1, dt2, rt1, rt2;
 
-        FileOperator ff("pos.log", FileOpenType::Write);
-        char* buffer = (char*)malloc(1024);
+        //FileOperator ff("pos.log", FileOpenType::Write);
+        //char* buffer = (char*)malloc(1024);
 
         while (likely(runningFlag)) {
             {
@@ -147,12 +147,12 @@ private:
                     assert(oriSize == 8192);
                 }
                 pwrite(fd, oriBuffer, oriSize, restoreWriteTask->pos);
-                sprintf(buffer, "1, %lu, %lu\n", chunkCounter, restoreWriteTask->pos);
-                ff.write((uint8_t*)buffer, strlen(buffer));
+                //sprintf(buffer, "1, %lu, %lu\n", chunkCounter, restoreWriteTask->pos);
+                //ff.write((uint8_t*)buffer, strlen(buffer));
             }else{
                 pwrite(fd, restoreWriteTask->buffer, restoreWriteTask->length, restoreWriteTask->pos);
-                sprintf(buffer, "0, %lu, %lu\n", chunkCounter, restoreWriteTask->pos);
-                ff.write((uint8_t*)buffer, strlen(buffer));
+                //sprintf(buffer, "0, %lu, %lu\n", chunkCounter, restoreWriteTask->pos);
+                //ff.write((uint8_t*)buffer, strlen(buffer));
             }
 
 
