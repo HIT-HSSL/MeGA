@@ -58,6 +58,7 @@ private:
                     printf("version # %lu is required\n", i);
                 }
                 uint64_t baseCategory = (restoreTask->maxVersion - 1) * restoreTask->maxVersion / 2 + 1;
+                baseClass = baseCategory;
                 for (uint64_t i = baseCategory; i < baseCategory + restoreTask->targetVersion; i++) {
                     categoryList.push_back(i);
                     printf("category # %lu is required\n", i);

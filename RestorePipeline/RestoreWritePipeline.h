@@ -103,7 +103,7 @@ private:
         usize_t oriSize = 0;
         struct timeval t0, t1, dt1, dt2, rt1, rt2;
 
-        FileOperator ff("log", FileOpenType::Write);
+        FileOperator ff("pos.log", FileOpenType::Write);
         char* buffer = (char*)malloc(1024);
 
         while (likely(runningFlag)) {

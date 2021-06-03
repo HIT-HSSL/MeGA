@@ -12,7 +12,7 @@ aux_source_directory(ArrangementPipeline ArrangementPipeline)
 aux_source_directory(Rollhash Rollhash)
 add_subdirectory(gflags-2.2.2)
 
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 
 link_libraries(gflags::gflags isal_crypto pthread crypto jemalloc ${CMAKE_SOURCE_DIR}/lib/libxdelta.so)
 
