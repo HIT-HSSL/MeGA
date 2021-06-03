@@ -1,9 +1,13 @@
-//
-// Created by borelset on 2019/3/28.
-//
+/*
+ * Author   : Xiangyu Zou
+ * Date     : 04/23/2021
+ * Time     : 15:39
+ * Project  : MeGA
+ This source code is licensed under the GPLv2
+ */
 
-#ifndef GEAR_TEST_RABIN_CHUNKING_H
-#define GEAR_TEST_RABIN_CHUNKING_H
+#ifndef GEAR_RABIN_CHUNKING_H
+#define GEAR_RABIN_CHUNKING_H
 
 #include <cstddef>
 #include <cstdint>
@@ -417,4 +421,4 @@ int tttd_chunk_data(unsigned char *p, int n) {
 }
 
 
-#endif //GEAR_TEST_RABIN_CHUNKING_H
+#endif //GEAR_RABIN_CHUNKING_H

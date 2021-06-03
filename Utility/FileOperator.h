@@ -1,5 +1,13 @@
-#ifndef REDUNDANCY_DETECTION_FILEOPERATOR_H
-#define REDUNDANCY_DETECTION_FILEOPERATOR_H
+/*
+ * Author   : Xiangyu Zou
+ * Date     : 04/23/2021
+ * Time     : 15:39
+ * Project  : MeGA
+ This source code is licensed under the GPLv2
+ */
+
+#ifndef MEGA_FILEOPERATOR_H
+#define MEGA_FILEOPERATOR_H
 
 #include <sys/stat.h>
 #include <unistd.h>
@@ -106,4 +114,4 @@ private:
 };
 
 
-#endif //REDUNDANCY_DETECTION_FILEOPERATOR_H
+#endif //MEGA_FILEOPERATOR_H

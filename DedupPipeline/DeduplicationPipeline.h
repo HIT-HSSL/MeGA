@@ -1,8 +1,13 @@
-//  Copyright (c) Xiangyu Zou, 2020. All rights reserved.
-//  This source code is licensed under the GPLv2
+/*
+ * Author   : Xiangyu Zou
+ * Date     : 04/23/2021
+ * Time     : 15:39
+ * Project  : MeGA
+ This source code is licensed under the GPLv2
+ */
 
-#ifndef MFDEDUP_DEDUPLICATIONPIPELINE_H
-#define MFDEDUP_DEDUPLICATIONPIPELINE_H
+#ifndef MEGA_DEDUPLICATIONPIPELINE_H
+#define MEGA_DEDUPLICATIONPIPELINE_H
 
 
 #include "jemalloc/jemalloc.h"
@@ -241,4 +246,4 @@ private:
 
 static DeduplicationPipeline *GlobalDeduplicationPipelinePtr;
 
-#endif //MFDEDUP_DEDUPLICATIONPIPELINE_H
+#endif //MEGA_DEDUPLICATIONPIPELINE_H

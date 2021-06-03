@@ -1,9 +1,13 @@
-//
-// Created by BorelsetR on 2019/7/16.
-//
+/*
+ * Author   : Xiangyu Zou
+ * Date     : 04/23/2021
+ * Time     : 15:39
+ * Project  : MeGA
+ This source code is licensed under the GPLv2
+ */
 
-#ifndef REDUNDANCY_DETECTION_RABIN_H
-#define REDUNDANCY_DETECTION_RABIN_H
+#ifndef MEGA_RABIN_H
+#define MEGA_RABIN_H
 
 #include <cstring>
 #include "RollHash.h"
@@ -61,4 +65,4 @@ private:
 
 };
 
-#endif //REDUNDANCY_DETECTION_RABIN_H
+#endif //MEGA_RABIN_H

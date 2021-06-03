@@ -1,9 +1,13 @@
-//
-// Created by BorelsetR on 2019/7/16.
-//
+/*
+ * Author   : Xiangyu Zou
+ * Date     : 04/23/2021
+ * Time     : 15:39
+ * Project  : MeGA
+ This source code is licensed under the GPLv2
+ */
 
-#ifndef REDUNDANCY_DETECTION_GEAR_H
-#define REDUNDANCY_DETECTION_GEAR_H
+#ifndef MEGA_GEAR_H
+#define MEGA_GEAR_H
 
 #include <cstring>
 #include "RollHash.h"
@@ -67,4 +71,4 @@ private:
     uint64_t hashValue;
 };
 
-#endif //REDUNDANCY_DETECTION_GEAR_H
+#endif //MEGA_GEAR_H

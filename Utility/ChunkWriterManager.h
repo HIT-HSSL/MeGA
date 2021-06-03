@@ -1,8 +1,13 @@
-//  Copyright (c) Xiangyu Zou, 2020. All rights reserved.
-//  This source code is licensed under the GPLv2
+/*
+ * Author   : Xiangyu Zou
+ * Date     : 04/23/2021
+ * Time     : 15:39
+ * Project  : MeGA
+ This source code is licensed under the GPLv2
+ */
 
-#ifndef MFDEDUP_CHUNKWRITERMANAGER_H
-#define MFDEDUP_CHUNKWRITERMANAGER_H
+#ifndef MEGA_CHUNKWRITERMANAGER_H
+#define MEGA_CHUNKWRITERMANAGER_H
 
 #include "Likely.h"
 
@@ -125,4 +130,4 @@ private:
     Condition condition;
 };
 
-#endif //MFDEDUP_CHUNKWRITERMANAGER_H
+#endif //MEGA_CHUNKWRITERMANAGER_H

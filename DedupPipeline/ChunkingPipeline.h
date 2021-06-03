@@ -1,8 +1,13 @@
-//  Copyright (c) Xiangyu Zou, 2020. All rights reserved.
-//  This source code is licensed under the GPLv2
+/*
+ * Author   : Xiangyu Zou
+ * Date     : 04/23/2021
+ * Time     : 15:39
+ * Project  : MeGA
+ This source code is licensed under the GPLv2
+ */
 
-#ifndef MFDEDUP_CHUNKINGPIPELINE_H
-#define MFDEDUP_CHUNKINGPIPELINE_H
+#ifndef MEGA_CHUNKINGPIPELINE_H
+#define MEGA_CHUNKINGPIPELINE_H
 
 #include <sys/time.h>
 #include "../RollHash/Gear.h"
@@ -408,4 +413,4 @@ private:
 
 static ChunkingPipeline *GlobalChunkingPipelinePtr;
 
-#endif //MFDEDUP_CHUNKINGPIPELINE_H
+#endif //MEGA_CHUNKINGPIPELINE_H

@@ -1,8 +1,13 @@
-//  Copyright (c) Xiangyu Zou, 2020. All rights reserved.
-//  This source code is licensed under the GPLv2
+/*
+ * Author   : Xiangyu Zou
+ * Date     : 04/23/2021
+ * Time     : 15:39
+ * Project  : MeGA
+ This source code is licensed under the GPLv2
+ */
 
-#ifndef MFDEDUP_READFILEPIPELINE_H
-#define MFDEDUP_READFILEPIPELINE_H
+#ifndef MEGA_READFILEPIPELINE_H
+#define MEGA_READFILEPIPELINE_H
 
 #include "jemalloc/jemalloc.h"
 #include <sys/time.h>
@@ -99,4 +104,4 @@ private:
 
 static ReadFilePipeline *GlobalReadPipelinePtr;
 
-#endif //MFDEDUP_READFILEPIPELINE_H
+#endif //MEGA_READFILEPIPELINE_H

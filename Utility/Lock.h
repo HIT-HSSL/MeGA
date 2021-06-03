@@ -1,5 +1,13 @@
-#ifndef REDUNDANCY_DETECTION_LOCK_H
-#define REDUNDANCY_DETECTION_LOCK_H
+/*
+ * Author   : Xiangyu Zou
+ * Date     : 04/23/2021
+ * Time     : 15:39
+ * Project  : MeGA
+ This source code is licensed under the GPLv2
+ */
+
+#ifndef MEGA_LOCK_H
+#define MEGA_LOCK_H
 
 #include <iostream>
 #include "pthread.h"
@@ -91,4 +99,4 @@ private:
     int count;
 };
 
-#endif //REDUNDANCY_DETECTION_LOCK_H
+#endif //MEGA_LOCK_H

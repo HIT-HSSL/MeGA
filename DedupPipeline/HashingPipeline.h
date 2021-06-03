@@ -1,8 +1,13 @@
-//  Copyright (c) Xiangyu Zou, 2020. All rights reserved.
-//  This source code is licensed under the GPLv2
+/*
+ * Author   : Xiangyu Zou
+ * Date     : 04/23/2021
+ * Time     : 15:39
+ * Project  : MeGA
+ This source code is licensed under the GPLv2
+ */
 
-#ifndef MFDEDUP_HASHINGPIPELINE_H
-#define MFDEDUP_HASHINGPIPELINE_H
+#ifndef MEGA_HASHINGPIPELINE_H
+#define MEGA_HASHINGPIPELINE_H
 
 
 #include "jemalloc/jemalloc.h"
@@ -100,4 +105,4 @@ private:
 static HashingPipeline *GlobalHashingPipelinePtr;
 
 
-#endif //MFDEDUP_HASHINGPIPELINE_H
+#endif //MEGA_HASHINGPIPELINE_H

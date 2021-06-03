@@ -1,9 +1,13 @@
-//
-// Created by BorelsetR on 2019/7/16.
-//
+/*
+ * Author   : Xiangyu Zou
+ * Date     : 04/23/2021
+ * Time     : 15:39
+ * Project  : MeGA
+ This source code is licensed under the GPLv2
+ */
 
-#ifndef REDUNDANCY_DETECTION_ROLLHASH_H
-#define REDUNDANCY_DETECTION_ROLLHASH_H
+#ifndef MEGA_ROLLHASH_H
+#define MEGA_ROLLHASH_H
 
 #include <functional>
 
@@ -45,4 +49,4 @@ public:
     }
 };
 
-#endif //REDUNDANCY_DETECTION_ROLLHASH_H
+#endif //MEGA_ROLLHASH_H

@@ -1,3 +1,11 @@
+/*
+ * Author   : Xiangyu Zou
+ * Date     : 04/23/2021
+ * Time     : 15:39
+ * Project  : MeGA
+ This source code is licensed under the GPLv2
+ */
+
 #include <sys/time.h>
 #include <assert.h>
 #include "gflags/gflags.h"

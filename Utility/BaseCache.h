@@ -2,12 +2,12 @@
  * Author   : Xiangyu Zou
  * Date     : 04/23/2021
  * Time     : 15:39
- * Project  : MFDedup
+ * Project  : MeGA
  This source code is licensed under the GPLv2
  */
 
-#ifndef MFDEDUP_BASECACHE_H
-#define MFDEDUP_BASECACHE_H
+#ifndef MEGA_BASECACHE_H
+#define MEGA_BASECACHE_H
 
 #include <unordered_map>
 #include <map>
@@ -173,4 +173,4 @@ private:
     uint8_t* preloadBuffer;
 };
 
-#endif //MFDEDUP_BASECACHE_H
+#endif //MEGA_BASECACHE_H

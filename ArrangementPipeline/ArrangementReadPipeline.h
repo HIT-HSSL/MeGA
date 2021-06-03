@@ -1,8 +1,13 @@
-//  Copyright (c) Xiangyu Zou, 2020. All rights reserved.
-//  This source code is licensed under the GPLv2
+/*
+ * Author   : Xiangyu Zou
+ * Date     : 04/23/2021
+ * Time     : 15:39
+ * Project  : MeGA
+ This source code is licensed under the GPLv2
+ */
 
-#ifndef MFDEDUP_ARRANGEMENTREADPIPELINE_H
-#define MFDEDUP_ARRANGEMENTREADPIPELINE_H
+#ifndef MEGA_ARRANGEMENTREADPIPELINE_H
+#define MEGA_ARRANGEMENTREADPIPELINE_H
 
 #include "ArrangementFilterPipeline.h"
 #include "../Utility/FileOperator.h"
@@ -159,4 +164,4 @@ private:
 
 static ArrangementReadPipeline* GlobalArrangementReadPipelinePtr;
 
-#endif //MFDEDUP_ARRANGEMENTREADPIPELINE_H
+#endif //MEGA_ARRANGEMENTREADPIPELINE_H

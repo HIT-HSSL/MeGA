@@ -1,5 +1,13 @@
-#ifndef MFDEDUP_MANIFEST_H
-#define MFDEDUP_MANIFEST_H
+/*
+ * Author   : Xiangyu Zou
+ * Date     : 04/23/2021
+ * Time     : 15:39
+ * Project  : MeGA
+ This source code is licensed under the GPLv2
+ */
+
+#ifndef MEGA_MANIFEST_H
+#define MEGA_MANIFEST_H
 
 #include <string>
 #include "FileOperator.h"
@@ -38,4 +46,4 @@ public:
 private:
 };
 
-#endif //MFDEDUP_MANIFEST_H
+#endif //MEGA_MANIFEST_H

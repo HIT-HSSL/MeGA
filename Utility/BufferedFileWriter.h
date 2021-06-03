@@ -1,8 +1,13 @@
-//  Copyright (c) Xiangyu Zou, 2020. All rights reserved.
-//  This source code is licensed under the GPLv2
+/*
+ * Author   : Xiangyu Zou
+ * Date     : 04/23/2021
+ * Time     : 15:39
+ * Project  : MeGA
+ This source code is licensed under the GPLv2
+ */
 
-#ifndef MFDEDUP_BUFFEREDFILEWRITER_H
-#define MFDEDUP_BUFFEREDFILEWRITER_H
+#ifndef MEGA_BUFFEREDFILEWRITER_H
+#define MEGA_BUFFEREDFILEWRITER_H
 
 class BufferedFileWriter {
 public:
@@ -48,4 +53,4 @@ private:
     uint64_t syncThreshold = 0;
 };
 
-#endif //MFDEDUP_BUFFEREDFILEWRITER_H
+#endif //MEGA_BUFFEREDFILEWRITER_H

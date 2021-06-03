@@ -1,8 +1,13 @@
-//  Copyright (c) Xiangyu Zou, 2020. All rights reserved.
-//  This source code is licensed under the GPLv2
+/*
+ * Author   : Xiangyu Zou
+ * Date     : 04/23/2021
+ * Time     : 15:39
+ * Project  : MeGA
+ This source code is licensed under the GPLv2
+ */
 
-#ifndef MFDEDUP_ARRANGEMENTWRITEPIPELINE_H
-#define MFDEDUP_ARRANGEMENTWRITEPIPELINE_H
+#ifndef MEGA_ARRANGEMENTWRITEPIPELINE_H
+#define MEGA_ARRANGEMENTWRITEPIPELINE_H
 
 #include <string>
 #include "../Utility/StorageTask.h"
@@ -161,4 +166,4 @@ private:
 
 static ArrangementWritePipeline* GlobalArrangementWritePipelinePtr;
 
-#endif //MFDEDUP_ARRANGEMENTWRITEPIPELINE_H
+#endif //MEGA_ARRANGEMENTWRITEPIPELINE_H

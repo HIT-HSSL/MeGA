@@ -1,5 +1,5 @@
-#ifndef MDFDEDUP_STORAGETASK_H
-#define MDFDEDUP_STORAGETASK_H
+#ifndef MEGA_STORAGETASK_H
+#define MEGA_STORAGETASK_H
 
 #include "Lock.h"
 #include <list>
@@ -262,4 +262,4 @@ struct VolumeFileHeader {
     uint64_t offsetCount;
 };
 
-#endif //MDFDEDUP_STORAGETASK_H
+#endif //MEGA_STORAGETASK_H

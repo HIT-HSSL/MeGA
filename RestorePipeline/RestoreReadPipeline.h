@@ -1,8 +1,13 @@
-//  Copyright (c) Xiangyu Zou, 2020. All rights reserved.
-//  This source code is licensed under the GPLv2
+/*
+ * Author   : Xiangyu Zou
+ * Date     : 04/23/2021
+ * Time     : 15:39
+ * Project  : MeGA
+ This source code is licensed under the GPLv2
+ */
 
-#ifndef MFDEDUP_RESTOREREADPIPELINE_H
-#define MFDEDUP_RESTOREREADPIPELINE_H
+#ifndef MEGA_RESTOREREADPIPELINE_H
+#define MEGA_RESTOREREADPIPELINE_H
 
 #include <fcntl.h>
 #include "RestoreParserPipeline.h"
@@ -220,4 +225,4 @@ private:
 static RestoreReadPipeline *GlobalRestoreReadPipelinePtr;
 
 
-#endif //MFDEDUP_RESTOREREADPIPELINE_H
+#endif //MEGA_RESTOREREADPIPELINE_H

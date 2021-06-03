@@ -1,8 +1,13 @@
-//  Copyright (c) Xiangyu Zou, 2020. All rights reserved.
-//  This source code is licensed under the GPLv2
+/*
+ * Author   : Xiangyu Zou
+ * Date     : 04/23/2021
+ * Time     : 15:39
+ * Project  : MeGA
+ This source code is licensed under the GPLv2
+ */
 
-#ifndef MFDEDUP_ELIMINATOR_H
-#define MFDEDUP_ELIMINATOR_H
+#ifndef MEGA_ELIMINATOR_H
+#define MEGA_ELIMINATOR_H
 
 DEFINE_uint64(EliminateReadBuffer,
 67108864, "Read buffer size for eliminating old version");
@@ -102,4 +107,4 @@ private:
     char newPath[256];
 };
 
-#endif //MFDEDUP_ELIMINATOR_H
+#endif //MEGA_ELIMINATOR_H

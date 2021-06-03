@@ -1,8 +1,13 @@
-//  Copyright (c) Xiangyu Zou, 2020. All rights reserved.
-//  This source code is licensed under the GPLv2
+/*
+ * Author   : Xiangyu Zou
+ * Date     : 04/23/2021
+ * Time     : 15:39
+ * Project  : MeGA
+ This source code is licensed under the GPLv2
+ */
 
-#ifndef MFDEDUP_RESTOREWRITEPIPELINE_H
-#define MFDEDUP_RESTOREWRITEPIPELINE_H
+#ifndef MEGA_RESTOREWRITEPIPELINE_H
+#define MEGA_RESTOREWRITEPIPELINE_H
 
 class FileFlusher{
 public:
@@ -192,4 +197,4 @@ private:
 
 static RestoreWritePipeline *GlobalRestoreWritePipelinePtr;
 
-#endif //MFDEDUP_RESTOREWRITEPIPELINE_H
+#endif //MEGA_RESTOREWRITEPIPELINE_H

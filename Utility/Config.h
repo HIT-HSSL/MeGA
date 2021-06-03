@@ -1,5 +1,13 @@
-#ifndef MFDEDUP_CONFIG_H
-#define MFDEDUP_CONFIG_H
+/*
+ * Author   : Xiangyu Zou
+ * Date     : 04/23/2021
+ * Time     : 15:39
+ * Project  : MeGA
+ This source code is licensed under the GPLv2
+ */
+
+#ifndef MEGA_CONFIG_H
+#define MEGA_CONFIG_H
 
 #include <string>
 #include <iostream>
@@ -34,4 +42,4 @@ public:
 private:
 };
 
-#endif //MFDEDUP_CONFIG_H
+#endif //MEGA_CONFIG_H
