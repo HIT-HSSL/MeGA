@@ -47,6 +47,7 @@ public:
 
 private:
     void writeFileCallback() {
+        pthread_setname_np(pthread_self(), "Writing Thread");
         struct timeval t0, t1;
         bool newVersionFlag = true;
 

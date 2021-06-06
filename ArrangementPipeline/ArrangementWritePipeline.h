@@ -43,6 +43,7 @@ public:
 
 private:
     void arrangementWriteCallback(){
+        pthread_setname_np(pthread_self(), "Arrangement Writing Thread");
         ArrangementWriteTask* arrangementWriteTask;
         char pathBuffer[256];
         uint64_t* length;

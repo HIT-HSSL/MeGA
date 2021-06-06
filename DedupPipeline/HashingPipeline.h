@@ -43,6 +43,7 @@ public:
 
 private:
     void hashingWorkerCallback() {
+        pthread_setname_np(pthread_self(), "Hashing Thread");
         mh_sha1_ctx ctx;
         //SHA_CTX ctx;
         struct timeval t0, t1, t2;

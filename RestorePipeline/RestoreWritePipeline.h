@@ -103,6 +103,7 @@ public:
 
 private:
     void restoreWriteCallback() {
+        pthread_setname_np(pthread_self(), "Restore Writing Thread");
         RestoreWriteTask *restoreWriteTask;
         int fd = fileOperator->getFd();
         FileFlusher fileFlusher(fileOperator);

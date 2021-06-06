@@ -41,6 +41,7 @@ public:
 
 private:
     void restoreParserCallback(const std::string &path) {
+        pthread_setname_np(pthread_self(), "Restore Parsing Thread");
 
         FileOperator recipeFD((char *) path.data(), FileOpenType::Read);
         uint64_t size = FileOperator::size(path);

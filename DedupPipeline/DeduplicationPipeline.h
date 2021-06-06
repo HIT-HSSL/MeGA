@@ -54,6 +54,7 @@ public:
 
 private:
     void deduplicationWorkerCallback() {
+        pthread_setname_np(pthread_self(), "Dedup Thread");
         WriteTask writeTask;
 
         struct timeval t0, t1, dt1, dt2;

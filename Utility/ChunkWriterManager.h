@@ -94,6 +94,7 @@ private:
     }
 
     void ChunkWriterManagerCallback(){
+        pthread_setname_np(pthread_self(), "Chunk Writer Thread");
         uint64_t classId;
         while (likely(runningFlag)) {
             {

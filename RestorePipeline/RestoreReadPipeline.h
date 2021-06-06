@@ -37,6 +37,7 @@ public:
 
 private:
     void restoreReadCallback() {
+        pthread_setname_np(pthread_self(), "Restore Reading Thread");
         RestoreTask *restoreTask;
 
         struct timeval t0, t1;

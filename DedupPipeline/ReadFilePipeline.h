@@ -42,6 +42,8 @@ public:
 
 private:
     void readFileCallback() {
+        pthread_setname_np(pthread_self(), "Reading Thread");
+
         StorageTask *storageTask;
         struct timeval t0, t1;
         struct timeval rt1, rt2, rt3, rt4;

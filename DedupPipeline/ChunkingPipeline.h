@@ -67,6 +67,7 @@ public:
 private:
 
     void chunkingWorkerCallbackFastCDC() {
+        pthread_setname_np(pthread_self(), "Chunking Thread");
         mh_sha1_ctx ctx;
         //SHA_CTX ctx;
         uint64_t posPtr = 0;
@@ -164,6 +165,7 @@ private:
     }
 
     void chunkingWorkerCallbackRabin() {
+        pthread_setname_np(pthread_self(), "Chunking Thread");
         mh_sha1_ctx ctx;
         //SHA_CTX ctx;
         uint64_t posPtr = 0;
@@ -306,6 +308,7 @@ private:
     }
 
     void chunkingWorkerCallbackFixed() {
+        pthread_setname_np(pthread_self(), "Chunking Thread");
         mh_sha1_ctx ctx;
         //SHA_CTX ctx;
         uint64_t posPtr = 0;

@@ -38,6 +38,7 @@ public:
 private:
 
     void arrangementFilterCallback(){
+        pthread_setname_np(pthread_self(), "Arrangement Filtering Thread");
         ArrangementFilterTask* arrangementFilterTask;
         uint8_t* temp = (uint8_t*)malloc(FLAGS_ArrangementReadBufferLength);
 

@@ -39,6 +39,7 @@ public:
 private:
 
     void arrangementReadCallback() {
+        pthread_setname_np(pthread_self(), "Arrangement Reading Thread");
         ArrangementTask *arrangementTask;
         readAmount = 0;
 
