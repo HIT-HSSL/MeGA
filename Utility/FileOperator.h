@@ -13,8 +13,7 @@
 #include <unistd.h>
 #include <string>
 #include <cstring>
-#include <cassert>ls
-
+#include <cassert>
 #include <fcntl.h>
 
 enum class FileOpenType {
@@ -22,7 +21,6 @@ enum class FileOpenType {
     Write,
     ReadWrite,
     Append,
-    Direct,
 };
 
 uint64_t fileCounter = 0;

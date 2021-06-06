@@ -54,23 +54,26 @@ public:
         gettimeofday(&t0, NULL);
         char pathBuffer[256];
         uint64_t targetCategory;
-        if(basePos.CategoryOrder){
-            targetCategory = (currentVersion-2)*(currentVersion-1)/2 + basePos.CategoryOrder;
+        if (basePos.CategoryOrder) {
+            targetCategory = (currentVersion - 2) * (currentVersion - 1) / 2 + basePos.CategoryOrder;
             sprintf(pathBuffer, ClassFilePath.data(), targetCategory);
-        }else{
-            targetCategory = (currentVersion-2)*(currentVersion-1)/2 + 1;
+        } else {
+            targetCategory = (currentVersion - 2) * (currentVersion - 1) / 2 + 1;
             sprintf(pathBuffer, ClassFileAppendPath.data(), targetCategory);
         }
 
-        FileOperator basefile(pathBuffer, FileOpenType::Read);
-        basefile.seek(basePos.offset);
-        uint64_t readSize = basefile.read(preloadBuffer, PreloadSize);
-        basefile.releaseBufferedData();
-        assert(basePos.length <= readSize);
+        uint64_t readSize = 0;
+        {
+            FileOperator basefile(pathBuffer, FileOpenType::Read);
+            basefile.seek(basePos.offset);
+            readSize = basefile.read(preloadBuffer, PreloadSize);
+            basefile.releaseBufferedData();
+            assert(basePos.length <= readSize);
+        }
 
-        BlockHeader* headPtr;
+        BlockHeader *headPtr;
 
-        headPtr = (BlockHeader *)preloadBuffer;
+        headPtr = (BlockHeader *) preloadBuffer;
 
         uint64_t preLoadPos = 0;
         uint64_t leftLength = readSize;
