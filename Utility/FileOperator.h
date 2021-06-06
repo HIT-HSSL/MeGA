@@ -14,12 +14,15 @@
 #include <string>
 #include <cstring>
 #include <cassert>
+#include <bits/fcntl-linux.h>
+#include <fcntl.h>
 
 enum class FileOpenType {
     Read,
     Write,
     ReadWrite,
     Append,
+    Direct,
 };
 
 uint64_t fileCounter = 0;
@@ -104,8 +107,12 @@ public:
         return fileno(file);
     }
 
-    FILE* getFP(){
+    FILE *getFP() {
         return file;
+    }
+
+    int releaseBufferedData() {
+        posix_fadvise(file->_fileno, 0, 0, POSIX_FADV_DONTNEED);
     }
 
 private:

@@ -65,6 +65,7 @@ public:
         FileOperator basefile(pathBuffer, FileOpenType::Read);
         basefile.seek(basePos.offset);
         uint64_t readSize = basefile.read(preloadBuffer, PreloadSize);
+        basefile.releaseBufferedData();
         assert(basePos.length <= readSize);
 
         BlockHeader* headPtr;
