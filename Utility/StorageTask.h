@@ -127,16 +127,31 @@ struct RestoreParseTask {
 struct RestoreWriteTask {
     uint8_t *buffer = nullptr;
     uint64_t pos;
-    uint64_t type:1;
-    uint64_t length:63;
+    uint64_t type: 1;
+    uint64_t length: 63;
+    uint64_t baseLength;
     bool endFlag = false;
 
-    RestoreWriteTask(uint8_t *buf, uint64_t p, uint64_t len, uint64_t t) {
+    RestoreWriteTask(uint8_t *buf, uint64_t p, uint64_t len, uint64_t t, uint64_t b) {
+        if (!t && b) {
+            buffer = (uint8_t *) malloc(b);
+            memset(buffer, 0, b);
+            if (len < b) {
+                memcpy(buffer, buf, len);
+            } else {
+                memcpy(buffer, buf, b);
+            }
+            length = b;
+        } else {
+            buffer = (uint8_t *) malloc(len);
+            memcpy(buffer, buf, len);
+            length = len;
+        }
         type = t;
-        buffer = (uint8_t *) malloc(len);
-        memcpy(buffer, buf, len);
-        length = len;
         pos = p;
+        if (t) {
+            baseLength = b;
+        }
     }
 
     RestoreWriteTask(bool flag) {
@@ -253,9 +268,11 @@ struct BlockHeader {
     };
 };
 
-struct RestoreMapListEntry{
-    uint64_t type:1;
-    uint64_t pos:63;
+struct RestoreMapListEntry {
+    uint64_t type: 1;
+    uint64_t pos: 63;
+    uint64_t length;
+    uint64_t oriLength;
 };
 
 struct VolumeFileHeader {

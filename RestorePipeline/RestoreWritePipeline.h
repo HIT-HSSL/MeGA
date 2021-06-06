@@ -9,9 +9,13 @@
 #ifndef MEGA_RESTOREWRITEPIPELINE_H
 #define MEGA_RESTOREWRITEPIPELINE_H
 
-class FileFlusher{
+
+#define ChunkBufferSize 65536
+
+class FileFlusher {
 public:
-    FileFlusher(FileOperator* f): runningFlag(true), taskAmount(0), mutexLock(), condition(mutexLock), fileOperator(f){
+    FileFlusher(FileOperator *f) : runningFlag(true), taskAmount(0), mutexLock(), condition(mutexLock),
+                                   fileOperator(f) {
         worker = new std::thread(std::bind(&FileFlusher::fileFlusherCallback, this));
     }
 
@@ -102,14 +106,13 @@ private:
         RestoreWriteTask *restoreWriteTask;
         int fd = fileOperator->getFd();
         FileFlusher fileFlusher(fileOperator);
-        // todo: currently chunk size is configured as 8192
-        uint8_t* baseBuffer = (uint8_t*)malloc(8192);
-        uint8_t* oriBuffer = (uint8_t*)malloc(8192);
+        uint8_t *baseBuffer = (uint8_t *) malloc(ChunkBufferSize);
+        uint8_t *oriBuffer = (uint8_t *) malloc(ChunkBufferSize);
         usize_t oriSize = 0;
         struct timeval t0, t1, dt1, dt2, rt1, rt2;
 
-        //FileOperator ff("pos.log", FileOpenType::Write);
-        //char* buffer = (char*)malloc(1024);
+//        FileOperator ff("pos.cd ..log", FileOpenType::Write);
+//        char* buffer = (char*)malloc(1024);
 
         while (likely(runningFlag)) {
             {
@@ -138,26 +141,25 @@ private:
             if(restoreWriteTask->type){
                 deltaCounter++;
                 gettimeofday(&rt1, NULL);
-                pread(fd, baseBuffer, 8192, restoreWriteTask->pos);
+                pread(fd, baseBuffer, restoreWriteTask->baseLength, restoreWriteTask->pos);
                 gettimeofday(&rt2, NULL);
                 readTime += (rt2.tv_sec - rt1.tv_sec) * 1000000 + rt2.tv_usec - rt1.tv_usec;;
 
                 gettimeofday(&dt1, NULL);
-                int r = xd3_decode_memory(restoreWriteTask->buffer, restoreWriteTask->length, baseBuffer, 8192, oriBuffer, &oriSize, 8192, XD3_COMPLEVEL_1);
+                int r = xd3_decode_memory(restoreWriteTask->buffer, restoreWriteTask->length, baseBuffer,
+                                          restoreWriteTask->baseLength, oriBuffer, &oriSize, ChunkBufferSize,
+                                          XD3_COMPLEVEL_1);
                 gettimeofday(&dt2, NULL);
                 decodingTime += (dt2.tv_sec - dt1.tv_sec) * 1000000 + dt2.tv_usec - dt1.tv_usec;
-                assert(r==0);
-                if(unlikely(oriSize != 8192)){
-                    printf("Error: decompressed chunk's size is %u\n", oriSize);
-                    assert(oriSize == 8192);
-                }
+                assert(r == 0);
+                assert(oriSize == restoreWriteTask->baseLength);
                 pwrite(fd, oriBuffer, oriSize, restoreWriteTask->pos);
-                //sprintf(buffer, "1, %lu, %lu\n", chunkCounter, restoreWriteTask->pos);
-                //ff.write((uint8_t*)buffer, strlen(buffer));
-            }else{
+//                sprintf(buffer, "1, %lu, %lu, %lu\n", chunkCounter, restoreWriteTask->pos, restoreWriteTask->baseLength);
+//                ff.write((uint8_t*)buffer, strlen(buffer));
+            }else {
                 pwrite(fd, restoreWriteTask->buffer, restoreWriteTask->length, restoreWriteTask->pos);
-                //sprintf(buffer, "0, %lu, %lu\n", chunkCounter, restoreWriteTask->pos);
-                //ff.write((uint8_t*)buffer, strlen(buffer));
+//                sprintf(buffer, "0, %lu, %lu, %lu\n", chunkCounter, restoreWriteTask->pos, restoreWriteTask->length);
+//                ff.write((uint8_t*)buffer, strlen(buffer));
             }
 
 

@@ -109,68 +109,77 @@ private:
 
                 if(lookupResult == LookupResult::Unique){
                     chunkCounter[(int) lookupResult]++;
-                    if(unlikely(dedupTask.length != 8192)) {
-                        GlobalMetadataManagerPtr->uniqueAddRecord(writeTask.sha1Fp, dedupTask.fileID);
-                        lastCategoryLength += dedupTask.length + sizeof(BlockHeader);
-                    }
-                    else{
-                        odessCalculation(dedupTask.buffer+dedupTask.pos, dedupTask.length, &tempSimilarityFeatures);
-                        LookupResult similarLookupResult = GlobalMetadataManagerPtr->similarityLookup(tempSimilarityFeatures, &tempBasePos);
-                        if(similarLookupResult == LookupResult::Similar){
-                            // read base
-                            int r = baseCache.getRecord(tempBasePos.sha1Fp, &tempBlockEntry);
-                            if(!r){
-                                baseCache.loadBaseChunks(tempBasePos);
-                                r = baseCache.getRecord(tempBasePos.sha1Fp, &tempBlockEntry);
-                                assert(r);
-                            }
-                            // calculate delta
-                            uint8_t* tempBuffer = (uint8_t*)malloc(dedupTask.length);
-                            usize_t deltaSize;
-                            gettimeofday(&dt1, NULL);
-                            r = xd3_encode_memory(dedupTask.buffer+dedupTask.pos, dedupTask.length, tempBlockEntry.block, tempBlockEntry.length, tempBuffer, &deltaSize, dedupTask.length, XD3_COMPLEVEL_1);
-                            gettimeofday(&dt2, NULL);
-                            deltaTime += (dt2.tv_sec - dt1.tv_sec) * 1000000 + dt2.tv_usec - dt1.tv_usec;
-
-                            if(r != 0 || deltaSize > dedupTask.length){
-                                // no delta
-                                free(tempBuffer);
-                                GlobalMetadataManagerPtr->uniqueAddRecord(writeTask.sha1Fp, dedupTask.fileID);
-                                GlobalMetadataManagerPtr->addSimilarFeature(tempSimilarityFeatures, {writeTask.sha1Fp,
-                                                                                                     (uint32_t)dedupTask.fileID,
-                                                                                                     lastCategoryLength,
-                                                                                                     dedupTask.length});
-                                writeTask.similarityFeatures = tempSimilarityFeatures;
-                                lastCategoryLength += dedupTask.length + sizeof(BlockHeader);
-                                xdeltaError++;
-                            }else{
-                                // add metadata
-                                GlobalMetadataManagerPtr->deltaAddRecord(writeTask.sha1Fp, dedupTask.fileID,
-                                                                         tempBasePos.sha1Fp,
-                                                                         dedupTask.length - deltaSize);
-                                // extend base lifecycle
-                                GlobalMetadataManagerPtr->extendBase(tempBasePos.sha1Fp, {0, tempBasePos.CategoryOrder});
-                                // update task
-                                writeTask.type = (int)similarLookupResult;
-                                writeTask.buffer = tempBuffer;
-                                writeTask.pos = 0;
-                                writeTask.length = deltaSize;
-                                writeTask.oriLength = dedupTask.length;
-                                writeTask.deltaTag = 1;
-                                writeTask.baseFP = tempBasePos.sha1Fp;
-                                deltaReduceLength += dedupTask.length - deltaSize;
-                                lastCategoryLength += deltaSize + sizeof(BlockHeader);
-                                chunkCounter[3]++;
-                            }
+                    odessCalculation(dedupTask.buffer + dedupTask.pos, dedupTask.length, &tempSimilarityFeatures);
+                    LookupResult similarLookupResult = GlobalMetadataManagerPtr->similarityLookup(
+                            tempSimilarityFeatures, &tempBasePos);
+                    if (similarLookupResult == LookupResult::Similar) {
+                        // read base
+                        int r = baseCache.getRecord(tempBasePos.sha1Fp, &tempBlockEntry);
+                        if (!r) {
+                            baseCache.loadBaseChunks(tempBasePos);
+                            r = baseCache.getRecord(tempBasePos.sha1Fp, &tempBlockEntry);
+                            assert(r);
                         }
-                        else{
-                            GlobalMetadataManagerPtr->uniqueAddRecord(writeTask.sha1Fp, dedupTask.fileID);
-                            GlobalMetadataManagerPtr->addSimilarFeature(tempSimilarityFeatures,
-                                                                        {writeTask.sha1Fp, (uint32_t)dedupTask.fileID,
-                                                                         lastCategoryLength, dedupTask.length});
+                        // calculate delta
+                        uint8_t *tempBuffer = (uint8_t *) malloc(dedupTask.length);
+                        usize_t deltaSize;
+                        gettimeofday(&dt1, NULL);
+                        if (tempBlockEntry.length >= dedupTask.length) {
+                            r = xd3_encode_memory(dedupTask.buffer + dedupTask.pos, dedupTask.length,
+                                                  tempBlockEntry.block, dedupTask.length, tempBuffer, &deltaSize,
+                                                  dedupTask.length, XD3_COMPLEVEL_1);
+                        } else {
+                            uint8_t *baseBuffer = (uint8_t *) malloc(dedupTask.length);
+                            memset(baseBuffer, 0, dedupTask.length);
+                            memcpy(baseBuffer, tempBlockEntry.block, tempBlockEntry.length);
+                            r = xd3_encode_memory(dedupTask.buffer + dedupTask.pos, dedupTask.length, baseBuffer,
+                                                  dedupTask.length, tempBuffer, &deltaSize, dedupTask.length,
+                                                  XD3_COMPLEVEL_1);
+                            free(baseBuffer);
+                        }
+                        gettimeofday(&dt2, NULL);
+                        deltaTime += (dt2.tv_sec - dt1.tv_sec) * 1000000 + dt2.tv_usec - dt1.tv_usec;
+
+                        if (r != 0 || deltaSize >= dedupTask.length) {
+                            // no delta
+                            free(tempBuffer);
+                            GlobalMetadataManagerPtr->uniqueAddRecord(writeTask.sha1Fp, dedupTask.fileID,
+                                                                      dedupTask.length);
+                            GlobalMetadataManagerPtr->addSimilarFeature(tempSimilarityFeatures, {writeTask.sha1Fp,
+                                                                                                 (uint32_t) dedupTask.fileID,
+                                                                                                 lastCategoryLength,
+                                                                                                 dedupTask.length});
                             writeTask.similarityFeatures = tempSimilarityFeatures;
                             lastCategoryLength += dedupTask.length + sizeof(BlockHeader);
+                            xdeltaError++;
+                        } else {
+                            // add metadata
+                            GlobalMetadataManagerPtr->deltaAddRecord(writeTask.sha1Fp, dedupTask.fileID,
+                                                                     tempBasePos.sha1Fp,
+                                                                     dedupTask.length - deltaSize,
+                                                                     dedupTask.length);
+                            // extend base lifecycle
+                            GlobalMetadataManagerPtr->extendBase(tempBasePos.sha1Fp,
+                                                                 {0, tempBasePos.CategoryOrder, tempBasePos.length});
+                            // update task
+                            writeTask.type = (int) similarLookupResult;
+                            writeTask.buffer = tempBuffer;
+                            writeTask.pos = 0;
+                            writeTask.length = deltaSize;
+                            writeTask.oriLength = dedupTask.length;
+                            writeTask.deltaTag = 1;
+                            writeTask.baseFP = tempBasePos.sha1Fp;
+                            deltaReduceLength += dedupTask.length - deltaSize;
+                            lastCategoryLength += deltaSize + sizeof(BlockHeader);
+                            chunkCounter[3]++;
                         }
+                    } else {
+                        GlobalMetadataManagerPtr->uniqueAddRecord(writeTask.sha1Fp, dedupTask.fileID, dedupTask.length);
+                        GlobalMetadataManagerPtr->addSimilarFeature(tempSimilarityFeatures,
+                                                                    {writeTask.sha1Fp, (uint32_t) dedupTask.fileID,
+                                                                     lastCategoryLength, dedupTask.length});
+                        writeTask.similarityFeatures = tempSimilarityFeatures;
+                        lastCategoryLength += dedupTask.length + sizeof(BlockHeader);
                     }
                     afterDedupLength += dedupTask.length;
                 }
@@ -178,10 +187,10 @@ private:
                     chunkCounter[(int) lookupResult]++;
                     // nothing to do
                 }
-                else if(lookupResult == LookupResult::InternalDeltaDedup){
+                else if(lookupResult == LookupResult::InternalDeltaDedup) {
                     chunkCounter[(int) LookupResult::InternalDedup]++;
                     writeTask.type = (int) LookupResult::InternalDedup;
-                    writeTask.oriLength = 8192; //todo
+                    writeTask.oriLength = fpTableEntry.oriLength; //updated
                     writeTask.baseFP = fpTableEntry.baseFP;
                     writeTask.deltaTag = 1;
                 }
@@ -189,11 +198,12 @@ private:
                     chunkCounter[(int) lookupResult]++;
                     adjacentDuplicates += dedupTask.length;
                     GlobalMetadataManagerPtr->neighborAddRecord(writeTask.sha1Fp, fpTableEntry);
-                    if(fpTableEntry.deltaTag){
+                    if(fpTableEntry.deltaTag) {
                         writeTask.deltaTag = 1;
                         writeTask.baseFP = fpTableEntry.baseFP;
-                        writeTask.oriLength = 8192; //todo
-                        GlobalMetadataManagerPtr->neighborAddRecord(fpTableEntry.baseFP, {0, fpTableEntry.categoryOrder, fpTableEntry.baseFP});
+                        writeTask.oriLength = fpTableEntry.oriLength; //updated
+                        GlobalMetadataManagerPtr->neighborAddRecord(fpTableEntry.baseFP,
+                                                                    {0, fpTableEntry.categoryOrder});
                     }
                 }
 

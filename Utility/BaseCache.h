@@ -74,17 +74,18 @@ public:
         uint64_t preLoadPos = 0;
         uint64_t leftLength = readSize;
 
-        while (leftLength > sizeof(BlockHeader) && leftLength >= (8192+sizeof(BlockHeader))) {// todo
+        while (leftLength > sizeof(BlockHeader) &&
+               leftLength >= (2048 + sizeof(BlockHeader))) {// todo: min chunksize configured to 2048
             headPtr = (BlockHeader *) (preloadBuffer + preLoadPos);
-            if(headPtr->length+sizeof(BlockHeader) > leftLength) { //todo: fixed size
+            if (headPtr->length + sizeof(BlockHeader) > leftLength) {
                 break;
-            }else if(!headPtr->type){
+            } else if (!headPtr->type) {
                 addRecord(headPtr->fp, preloadBuffer + preLoadPos + sizeof(BlockHeader),
                           headPtr->length);
             }
 
             preLoadPos += headPtr->length + sizeof(BlockHeader);
-            if(preLoadPos >= readSize) break;
+            if (preLoadPos >= readSize) break;
             leftLength = readSize - preLoadPos;
         }
         gettimeofday(&t1, NULL);

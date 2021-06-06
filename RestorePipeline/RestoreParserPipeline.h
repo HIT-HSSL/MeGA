@@ -55,11 +55,11 @@ private:
         for (int i=0; i<count; i++) {
             blockHeader = (BlockHeader *) (recipeBuffer + i * sizeof(BlockHeader));
             if(blockHeader->type){
-                restoreMap[blockHeader->baseFP].push_back({0, pos});
-                restoreMap[blockHeader->fp].push_back({1, pos});
+                restoreMap[blockHeader->baseFP].push_back({0, pos, blockHeader->length, blockHeader->oriLength});
+                restoreMap[blockHeader->fp].push_back({1, pos, blockHeader->length, blockHeader->oriLength});
                 pos += blockHeader->oriLength;
             }else{
-                restoreMap[blockHeader->fp].push_back({0, pos});
+                restoreMap[blockHeader->fp].push_back({0, pos, blockHeader->length, 0});
                 pos += blockHeader->length;
             }
         }
@@ -138,12 +138,17 @@ private:
                 auto iter = restoreMap.find(blockHeader->fp);
                 // if we allow arrangement to fall behind, below assert must be commented.
                 //assert(iter->second.size() > 0);
-                if(iter != restoreMap.end()){
+                if (iter != restoreMap.end()) {
                     for (auto item : iter->second) {
                         totalLength += blockHeader->length;
-                        RestoreWriteTask *restoreWriteTask = new RestoreWriteTask(chunkPtr, item.pos, blockHeader->length, item.type);
+                        // item.length could be the length before delta (not the actual delta size), when delta chunk is migrated as adjacent.
+                        RestoreWriteTask *restoreWriteTask = new RestoreWriteTask(chunkPtr, item.pos,
+                                                                                  blockHeader->length, item.type,
+                                                                                  item.oriLength);
                         GlobalRestoreWritePipelinePtr->addTask(restoreWriteTask);
                     }
+                } else {
+                    assert(1);
                 }
 
                 readoffset += sizeof(BlockHeader) + blockHeader->length;

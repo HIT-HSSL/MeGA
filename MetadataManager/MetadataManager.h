@@ -41,9 +41,12 @@ struct TupleEqualer {
     }
 };
 
-struct FPTableEntry{
-    uint32_t deltaTag:1; // 0: unique 1: delta
-    uint32_t categoryOrder:31;
+struct FPTableEntry {
+    uint32_t deltaTag: 1; // 0: unique 1: delta
+    uint32_t categoryOrder: 31;
+    union {
+        uint64_t oriLength;
+    };
     union {
         SHA1FP baseFP;
     };
@@ -222,24 +225,25 @@ public:
         }
     }
 
-    int uniqueAddRecord(const SHA1FP &sha1Fp, uint32_t categoryOrder) {
+    int uniqueAddRecord(const SHA1FP &sha1Fp, uint32_t categoryOrder, uint64_t oriLength) {
         MutexLockGuard mutexLockGuard(tableLock);
 
         auto pp = laterTable.fpTable.find(sha1Fp);
         assert(pp == laterTable.fpTable.end());
 
-        laterTable.fpTable.insert({sha1Fp, {0, categoryOrder}});
+        laterTable.fpTable.insert({sha1Fp, {0, categoryOrder, oriLength}});
 
         return 0;
     }
 
-    int deltaAddRecord(const SHA1FP &sha1Fp, uint32_t categoryOrder, const SHA1FP& baseFP, uint64_t diffLength) {
+    int deltaAddRecord(const SHA1FP &sha1Fp, uint32_t categoryOrder, const SHA1FP &baseFP, uint64_t diffLength,
+                       uint64_t oriLength) {
         MutexLockGuard mutexLockGuard(tableLock);
 
         auto pp = laterTable.fpTable.find(sha1Fp);
         assert(pp == laterTable.fpTable.end());
 
-        laterTable.fpTable.insert({sha1Fp, {1, categoryOrder, baseFP}});
+        laterTable.fpTable.insert({sha1Fp, {1, categoryOrder, oriLength, baseFP}});
         laterTable.duplicateSize -= diffLength;
 
         return 0;
@@ -265,9 +269,9 @@ public:
         MutexLockGuard mutexLockGuard(tableLock);
 
         auto pp = laterTable.fpTable.find(sha1Fp);
-        if(pp == laterTable.fpTable.end()){
+        if(pp == laterTable.fpTable.end()) {
             laterTable.fpTable.insert({sha1Fp, fpTableEntry});
-            laterTable.duplicateSize += 8192 + sizeof(BlockHeader); // todo: fixed to 8192
+            laterTable.duplicateSize += fpTableEntry.oriLength + sizeof(BlockHeader); // updated
         }
 
         return 0;
@@ -306,7 +310,7 @@ public:
         }
     }
 
-    // todo:: fix metadata storage
+    // updated
     int save(){
         printf("------------------------Saving index----------------------\n");
         printf("Saving index..\n");
