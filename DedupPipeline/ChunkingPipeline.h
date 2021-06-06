@@ -20,9 +20,9 @@
 #include "../RollHash/rabin_chunking.h"
 
 DEFINE_string(ChunkingMethod,
-"Fixed", "chunking method in chunking");
+              "FastCDC", "chunking method in chunking");
 DEFINE_int32(ExpectSize,
-8192, "average chunk size");
+             8192, "average chunk size");
 
 class ChunkingPipeline {
 public:
