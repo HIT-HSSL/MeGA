@@ -14,7 +14,6 @@
 #include <string>
 #include <cstring>
 #include <cassert>
-#include <bits/fcntl-linux.h>
 #include <fcntl.h>
 
 enum class FileOpenType {
