@@ -37,7 +37,7 @@ public:
         int64_t rt = toml::find<int64_t>(data, "retention");
         RetentionTime = rt;
         printf("-----------------------Configure-----------------------\n");
-        printf("MFDedup storage path:%s, RetentionTime:%lu\n", path.data(), rt);
+        printf("MeGA storage path:%s, RetentionTime:%lu\n", path.data(), rt);
     }
 private:
 };

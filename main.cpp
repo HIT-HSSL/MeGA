@@ -226,13 +226,13 @@ int main(int argc, char **argv) {
     }
     else {
         printf("=================================================\n");
-        printf("Usage: MFDedup [args..]\n");
+        printf("Usage: MeGA [args..]\n");
         printf("1. Write a series of versions into system\n");
-        printf("./MFDedup --ConfigFile=[config file] --task=write --InputFile=[backup workload]\n");
+        printf("./MeGA --ConfigFile=[config file] --task=write --InputFile=[backup workload]\n");
         printf("2. Restore a version of from the system\n");
-        printf("./MFDedup --ConfigFile=config.toml --task=restore --RestorePath=[where the restored file is to locate] --RestoreRecipe=[which version to restore(1 ~ no. of the last retained version)]\n");
+        printf("./MeGA --ConfigFile=config.toml --task=restore --RestorePath=[where the restored file is to locate] --RestoreRecipe=[which version to restore(1 ~ no. of the last retained version)]\n");
         printf("3. Check status of the system\n");
-        printf("./MFDedup --task=status\n");
+        printf("./MeGA --task=status\n");
         printf("--------------------------------------------------\n");
         printf("more information with --help\n");
         printf("=================================================\n");
