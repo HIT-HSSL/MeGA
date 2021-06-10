@@ -22,11 +22,12 @@ struct SimilarityFeatures{
     uint64_t feature3;
 };
 
-struct BasePos{
+struct BasePos {
     SHA1FP sha1Fp;
     uint32_t CategoryOrder;
     uint64_t offset;
-    uint64_t length;
+    uint64_t valid: 1;
+    uint64_t length: 63;
 };
 
 struct DeltaTask{

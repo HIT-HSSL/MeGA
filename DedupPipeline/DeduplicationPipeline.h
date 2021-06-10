@@ -87,6 +87,7 @@ private:
             }
 
             SimilarityFeatures tempSimilarityFeatures;
+            BasePos bpResult[3];
             BasePos tempBasePos;
             BlockEntry tempBlockEntry;
             for (const auto &dedupTask : taskList) {
@@ -112,10 +113,18 @@ private:
                     chunkCounter[(int) lookupResult]++;
                     odessCalculation(dedupTask.buffer + dedupTask.pos, dedupTask.length, &tempSimilarityFeatures);
                     LookupResult similarLookupResult = GlobalMetadataManagerPtr->similarityLookup(
-                            tempSimilarityFeatures, &tempBasePos);
+                            tempSimilarityFeatures, bpResult);
                     if (similarLookupResult == LookupResult::Similar) {
-                        // read base
-                        int r = baseCache.getRecord(tempBasePos.sha1Fp, &tempBlockEntry);
+                        // pick a base
+                        int r = 0;
+                        for (int i = 0; i < 3; i++) {
+                            if (bpResult[i].valid) {
+                                tempBasePos = bpResult[i];
+                                r = baseCache.getRecord(bpResult[i].sha1Fp, &tempBlockEntry);
+                                if (r) break;
+                            }
+                        }
+                        // load from disk
                         if (!r) {
                             baseCache.loadBaseChunks(tempBasePos);
                             r = baseCache.getRecord(tempBasePos.sha1Fp, &tempBlockEntry);

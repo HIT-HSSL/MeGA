@@ -113,6 +113,13 @@ public:
         posix_fadvise(file->_fileno, 0, 0, POSIX_FADV_DONTNEED);
     }
 
+    uint64_t getSize() {
+        fseek(file, 0, SEEK_END);
+        uint64_t result = ftell(file);
+        fseek(file, 0, SEEK_SET);
+        return result;
+    }
+
 private:
     FILE *file;
     int status = 0;

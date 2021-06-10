@@ -192,22 +192,31 @@ public:
     }
 
     LookupResult similarityLookup(const SimilarityFeatures& similarityFeatures, BasePos* basePos){
+        memset(basePos, 0, sizeof(BasePos) * 3);
+        bool result = false;
         auto iter1 = earlierSimilarityTable.simIndex1.find(similarityFeatures.feature1);
-        if(iter1!=earlierSimilarityTable.simIndex1.end()){
-            *basePos = iter1->second;
-            return LookupResult::Similar;
+        if (iter1 != earlierSimilarityTable.simIndex1.end()) {
+            basePos[0] = iter1->second;
+            basePos[0].valid = 1;
+            result = true;
         }
         auto iter2 = earlierSimilarityTable.simIndex2.find(similarityFeatures.feature2);
-        if(iter2!=earlierSimilarityTable.simIndex2.end()){
-            *basePos = iter2->second;
-            return LookupResult::Similar;
+        if (iter2 != earlierSimilarityTable.simIndex2.end()) {
+            basePos[1] = iter2->second;
+            basePos[1].valid = 1;
+            result = true;
         }
         auto iter3 = earlierSimilarityTable.simIndex3.find(similarityFeatures.feature3);
-        if(iter3!=earlierSimilarityTable.simIndex3.end()){
-            *basePos = iter3->second;
-            return LookupResult::Similar;
+        if (iter3 != earlierSimilarityTable.simIndex3.end()) {
+            basePos[2] = iter3->second;
+            basePos[2].valid = 1;
+            result = true;
         }
-        return LookupResult::Dissimilar;
+        if (result) {
+            return LookupResult::Similar;
+        } else {
+            return LookupResult::Dissimilar;
+        }
     }
 
     uint64_t arrangementGetTruncateSize(){
@@ -253,6 +262,7 @@ public:
         laterSimilarityTable.simIndex1.emplace(similarityFeatures.feature1, basePos);
         laterSimilarityTable.simIndex2.emplace(similarityFeatures.feature2, basePos);
         laterSimilarityTable.simIndex3.emplace(similarityFeatures.feature3, basePos);
+        return 0;
     }
 
     int neighborAddRecord(const SHA1FP &sha1Fp, const FPTableEntry& fpTableEntry) {
@@ -308,6 +318,7 @@ public:
                 item.second.CategoryOrder = 0;
             }
         }
+        return 0;
     }
 
     // updated
@@ -372,14 +383,16 @@ public:
         }
         printf("later similar table2 saves %lu items\n", size);
         size = laterSimilarityTable.simIndex3.size();
-        fileOperator.write((uint8_t*)&size, sizeof(uint64_t));
-        for(auto item : laterSimilarityTable.simIndex3){
-            fileOperator.write((uint8_t*)&item.first, sizeof(uint64_t));
-            fileOperator.write((uint8_t*)&item.second, sizeof(BasePos));
+        fileOperator.write((uint8_t *) &size, sizeof(uint64_t));
+        for (auto item : laterSimilarityTable.simIndex3) {
+            fileOperator.write((uint8_t *) &item.first, sizeof(uint64_t));
+            fileOperator.write((uint8_t *) &item.second, sizeof(BasePos));
         }
         printf("later similar table3 saves %lu items\n", size);
 
         fileOperator.fdatasync();
+
+        return 0;
     }
 
     int load(){
@@ -448,13 +461,15 @@ public:
             laterSimilarityTable.simIndex2.insert({tempFeature, tempBasePos});
         }
         printf("later similar table2 load %lu items\n", sizeL);
-        fileOperator.read((uint8_t*)&sizeL, sizeof(uint64_t));
-        for(uint64_t i = 0; i<sizeL; i++){
-            fileOperator.read((uint8_t*)&tempFeature, sizeof(uint64_t));
-            fileOperator.read((uint8_t*)&tempBasePos, sizeof(BasePos));
+        fileOperator.read((uint8_t *) &sizeL, sizeof(uint64_t));
+        for (uint64_t i = 0; i < sizeL; i++) {
+            fileOperator.read((uint8_t *) &tempFeature, sizeof(uint64_t));
+            fileOperator.read((uint8_t *) &tempBasePos, sizeof(BasePos));
             laterSimilarityTable.simIndex3.insert({tempFeature, tempBasePos});
         }
         printf("later similar table3 load %lu items\n", sizeL);
+
+        return 0;
     }
 
 private:
