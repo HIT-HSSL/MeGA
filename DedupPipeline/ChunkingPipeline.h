@@ -62,6 +62,7 @@ public:
         runningFlag = false;
         condition.notifyAll();
         worker->join();
+        delete worker;
     }
 
 private:
@@ -329,9 +330,8 @@ private:
                 MutexLockGuard mutexLockGuard(mutexLock);
                 while (!taskAmount) {
                     condition.wait();
-                    if (!runningFlag) break;
+                    if (!runningFlag) return;
                 }
-                if (!runningFlag) continue;
                 taskAmount--;
                 chunkTask = taskList.front();
                 taskList.pop_front();

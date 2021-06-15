@@ -40,6 +40,7 @@ public:
         runningFlag = false;
         condition.notifyAll();
         worker->join();
+        delete worker;
     }
 
     void getStatistics() {
@@ -58,7 +59,7 @@ private:
         WriteTask writeTask;
 
         struct timeval t0, t1, dt1, dt2;
-        std::list <WriteTask> saveList;
+        std::list<WriteTask> saveList;
         uint8_t *currentTask;
         bool newVersionFlag = true;
 
@@ -67,9 +68,8 @@ private:
                 MutexLockGuard mutexLockGuard(mutexLock);
                 while (!taskAmount) {
                     condition.wait();
-                    if (unlikely(!runningFlag)) break;
+                    if (unlikely(!runningFlag)) return;
                 }
-                if (unlikely(!runningFlag)) continue;
                 //printf("get task\n");
                 taskAmount = 0;
                 taskList.swap(receiveList);
@@ -229,7 +229,6 @@ private:
 
                     GlobalWriteFilePipelinePtr->addTask(writeTask);
                 } else {
-
                     GlobalWriteFilePipelinePtr->addTask(writeTask);
                 }
 

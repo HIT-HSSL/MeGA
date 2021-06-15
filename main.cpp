@@ -196,15 +196,15 @@ int main(int argc, char **argv) {
 
         // pipelines release
         //------------------------------------------------------
+        delete GlobalArrangementReadPipelinePtr;
+        delete GlobalArrangementFilterPipelinePtr;
+        delete GlobalArrangementWritePipelinePtr;
         delete GlobalReadPipelinePtr;
         delete GlobalChunkingPipelinePtr;
         delete GlobalHashingPipelinePtr;
         delete GlobalDeduplicationPipelinePtr;
         delete GlobalWriteFilePipelinePtr;
         delete GlobalMetadataManagerPtr;
-        delete GlobalArrangementReadPipelinePtr;
-        delete GlobalArrangementFilterPipelinePtr;
-        delete GlobalArrangementWritePipelinePtr;
         //------------------------------------------------------
 
     }

@@ -22,7 +22,7 @@ struct BlockEntry {
     uint64_t lastVisit;
 };
 
-uint64_t TotalSizeThreshold = 40 * 1024 * 1024;
+uint64_t TotalSizeThreshold = 400 * 1024 * 1024;
 
 class BaseCache{
 public:
@@ -72,8 +72,6 @@ public:
         }
 
         BlockHeader *headPtr;
-
-        headPtr = (BlockHeader *) preloadBuffer;
 
         uint64_t preLoadPos = 0;
         uint64_t leftLength = readSize;

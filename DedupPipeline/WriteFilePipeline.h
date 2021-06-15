@@ -39,6 +39,7 @@ public:
         runningFlag = false;
         condition.notifyAll();
         worker->join();
+        delete worker;
     }
 
     void getStatistics() {
@@ -60,9 +61,8 @@ private:
                 MutexLockGuard mutexLockGuard(mutexLock);
                 while (!taskAmount) {
                     condition.wait();
-                    if (unlikely(!runningFlag)) break;
+                    if (unlikely(!runningFlag)) return;
                 }
-                if (unlikely(!runningFlag)) continue;
                 taskAmount = 0;
                 condition.notify();
                 taskList.swap(receiveList);

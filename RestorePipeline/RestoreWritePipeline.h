@@ -35,6 +35,7 @@ public:
 private:
 
     void fileFlusherCallback(){
+        pthread_setname_np(pthread_self(), "Restore Flushing Thread");
         uint64_t task;
         while (likely(runningFlag)) {
             {
