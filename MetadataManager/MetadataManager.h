@@ -145,10 +145,12 @@ void odessCalculation(uint8_t* buffer, uint64_t length, SimilarityFeatures* simi
     uint64_t hashValue = 0;
     for (uint64_t i = 0; i < length; i++) {
         hashValue = (hashValue << 1) + gearMatrix[buffer[i]];
-        for (int j = 0; j < 12; j++) {
-            uint64_t transResult = (hashValue * kArray[j] + bArray[j]);
-            if (transResult > maxList[j])
-                maxList[j] = transResult;
+        if (!(hashValue & 0x0000400303410000)) { // sampling mask
+            for (int j = 0; j < 12; j++) {
+                uint64_t transResult = (hashValue * kArray[j] + bArray[j]);
+                if (transResult > maxList[j])
+                    maxList[j] = transResult;
+            }
         }
     }
 

@@ -12,8 +12,10 @@ aux_source_directory(ArrangementPipeline ArrangementPipeline)
 aux_source_directory(Rollhash Rollhash)
 add_subdirectory(gflags-2.2.2)
 
+SET(XDELTA_PATH ${CMAKE_SOURCE_DIR}/lib/)
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 
-link_libraries(gflags::gflags isal_crypto pthread crypto jemalloc ${CMAKE_SOURCE_DIR}/lib/libxdelta.so)
+link_libraries(gflags::gflags isal_crypto pthread crypto jemalloc ${XDELTA_PATH}/libxdelta.so)
 
 add_executable(MeGA main.cpp ${Utility} ${RollHash} ${MetadataManager} ${Pipeline} ${RestorePipeline} ${ArrangementPipeline} ${Rollhash})
