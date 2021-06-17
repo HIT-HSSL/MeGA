@@ -48,8 +48,10 @@ public:
         printf("Delta duration : %lu\n", deltaTime);
         printf("Unique:%lu, Internal:%lu, Adjacent:%lu, Delta:%lu\n", chunkCounter[0], chunkCounter[1], chunkCounter[2], chunkCounter[3]);
         printf("xdeltaError:%lu\n", xdeltaError);
-        printf("Total Length : %lu, Unique Length : %lu, Adjacent Length: %lu, Delta Reduce: %lu, Dedup Ratio : %f\n", totalLength, afterDedupLength, adjacentDuplicates, deltaReduceLength,
-               (float) totalLength / (afterDedupLength-deltaReduceLength));
+        printf("Total Length : %lu, Unique Length : %lu, Adjacent Length: %lu, Delta Reduce: %lu, Dedup Ratio : %f\n",
+               totalLength, afterDedupLength, adjacentDuplicates, deltaReduceLength,
+               (float) totalLength / (afterDedupLength - deltaReduceLength));
+        printf("cut times:%lu, cut length:%lu\n", cutTimes, cutLength);
     }
 
 
@@ -87,7 +89,7 @@ private:
             }
 
             SimilarityFeatures tempSimilarityFeatures;
-            BasePos bpResult[3];
+            BasePos bpResult[6];
             BasePos tempBasePos;
             BlockEntry tempBlockEntry;
             for (const auto &dedupTask : taskList) {
@@ -115,21 +117,22 @@ private:
                     LookupResult similarLookupResult = GlobalMetadataManagerPtr->similarityLookup(
                             tempSimilarityFeatures, bpResult);
                     if (similarLookupResult == LookupResult::Similar) {
-                        // pick a base
-                        int r = 0;
-                        for (int i = 0; i < 3; i++) {
-                            if (bpResult[i].valid) {
-                                tempBasePos = bpResult[i];
-                                r = baseCache.getRecord(bpResult[i].sha1Fp, &tempBlockEntry);
-                                if (r) break;
-                            }
-                        }
-                        // load from disk
-                        if (!r) {
-                            baseCache.loadBaseChunks(tempBasePos);
-                            r = baseCache.getRecord(tempBasePos.sha1Fp, &tempBlockEntry);
-                            assert(r);
-                        }
+//                        // pick a base
+//                        int r = 0;
+//                        for (int i = 0; i < 6; i++) {
+//                            if (bpResult[i].valid) {
+//                                tempBasePos = bpResult[i];
+//                                r = baseCache.getRecord(bpResult[i].sha1Fp, &tempBlockEntry);
+//                                if (r) break;
+//                            }
+//                        }
+//                        // load from disk
+//                        if (!r) {
+//                            baseCache.loadBaseChunks(tempBasePos);
+//                            r = baseCache.getRecord(tempBasePos.sha1Fp, &tempBlockEntry);
+//                            assert(r);
+//                        }
+                        int r = baseCache.getRecordBatch(bpResult, 6, &tempBlockEntry);
                         // calculate delta
                         uint8_t *tempBuffer = (uint8_t *) malloc(dedupTask.length);
                         usize_t deltaSize;
@@ -138,6 +141,8 @@ private:
                             r = xd3_encode_memory(dedupTask.buffer + dedupTask.pos, dedupTask.length,
                                                   tempBlockEntry.block, dedupTask.length, tempBuffer, &deltaSize,
                                                   dedupTask.length, XD3_COMPLEVEL_1);
+                            cutLength += tempBlockEntry.length - dedupTask.length;
+                            cutTimes++;
                         } else {
                             uint8_t *baseBuffer = (uint8_t *) malloc(dedupTask.length);
                             memset(baseBuffer, 0, dedupTask.length);
@@ -153,15 +158,8 @@ private:
                         if (r != 0 || deltaSize >= dedupTask.length) {
                             // no delta
                             free(tempBuffer);
-                            GlobalMetadataManagerPtr->uniqueAddRecord(writeTask.sha1Fp, dedupTask.fileID,
-                                                                      dedupTask.length);
-                            GlobalMetadataManagerPtr->addSimilarFeature(tempSimilarityFeatures, {writeTask.sha1Fp,
-                                                                                                 (uint32_t) dedupTask.fileID,
-                                                                                                 lastCategoryLength,
-                                                                                                 dedupTask.length});
-                            writeTask.similarityFeatures = tempSimilarityFeatures;
-                            lastCategoryLength += dedupTask.length + sizeof(BlockHeader);
                             xdeltaError++;
+                            goto unique;
                         } else {
                             // add metadata
                             GlobalMetadataManagerPtr->deltaAddRecord(writeTask.sha1Fp, dedupTask.fileID,
@@ -184,11 +182,13 @@ private:
                             chunkCounter[3]++;
                         }
                     } else {
+                        unique:
                         GlobalMetadataManagerPtr->uniqueAddRecord(writeTask.sha1Fp, dedupTask.fileID, dedupTask.length);
                         GlobalMetadataManagerPtr->addSimilarFeature(tempSimilarityFeatures,
                                                                     {writeTask.sha1Fp, (uint32_t) dedupTask.fileID,
                                                                      lastCategoryLength, dedupTask.length});
                         writeTask.similarityFeatures = tempSimilarityFeatures;
+                        baseCache.addRecord(writeTask.sha1Fp, writeTask.buffer + writeTask.pos, writeTask.length);
                         lastCategoryLength += dedupTask.length + sizeof(BlockHeader);
                     }
                     afterDedupLength += dedupTask.length;
@@ -260,6 +260,9 @@ private:
 
     uint64_t duration = 0;
     uint64_t deltaTime = 0;
+
+    uint64_t cutLength = 0, cutTimes = 0;
+
 
 };
 

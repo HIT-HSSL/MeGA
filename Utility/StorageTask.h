@@ -26,8 +26,8 @@ struct BasePos {
     SHA1FP sha1Fp;
     uint32_t CategoryOrder;
     uint64_t offset;
-    uint64_t valid: 1;
     uint64_t length: 63;
+    uint64_t valid: 1;
 };
 
 struct DeltaTask{

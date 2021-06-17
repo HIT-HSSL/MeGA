@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include <map>
 
-#define PreloadSize 2*1024*1024
+#define PreloadSize 4*1024*1024
 
 extern std::string ClassFileAppendPath;
 
@@ -20,17 +20,20 @@ struct BlockEntry {
     uint8_t *block;
     uint64_t length;
     uint64_t lastVisit;
+    uint64_t score = 0;
 };
 
 uint64_t TotalSizeThreshold = 400 * 1024 * 1024;
 
-class BaseCache{
+int UpdateScore = 2;
+
+class BaseCache {
 public:
-    BaseCache(): totalSize(0), index(0), cacheMap(65536), write(0), read(0) {
-        preloadBuffer = (uint8_t*)malloc(PreloadSize);
+    BaseCache() : totalSize(0), index(0), cacheMap(65536), write(0), read(0) {
+        preloadBuffer = (uint8_t *) malloc(PreloadSize);
     }
 
-    void setCurrentVersion(uint64_t verison){
+    void setCurrentVersion(uint64_t verison) {
         currentVersion = verison;
     }
 
@@ -47,14 +50,21 @@ public:
         printf("total size:%lu, items:%lu\n", totalSize, items);
         printf("cache write:%lu, cache read:%lu\n", write, read);
         printf("hit rate: %f(%lu/%lu)\n", float(success)/access, success, access);
-        printf("cache miss %lu times, total loading time %lu us, average %f us\n", access-success, loadingTime, (float)loadingTime/(access-success));
+        printf("cache miss %lu times, total loading time %lu us, average %f us\n", access - success, loadingTime,
+               (float) loadingTime / (access - success));
+        printf("self hit:%lu\n", selfHit);
     }
 
-    void loadBaseChunks(const BasePos& basePos){
+    void loadBaseChunks(const BasePos& basePos) {
         gettimeofday(&t0, NULL);
         char pathBuffer[256];
         uint64_t targetCategory;
-        if (basePos.CategoryOrder) {
+
+        if (basePos.CategoryOrder == currentVersion) {
+            targetCategory = (currentVersion - 1) * (currentVersion) / 2 + basePos.CategoryOrder;
+            sprintf(pathBuffer, ClassFilePath.data(), targetCategory);
+            selfHit++;
+        } else if (basePos.CategoryOrder) {
             targetCategory = (currentVersion - 2) * (currentVersion - 1) / 2 + basePos.CategoryOrder;
             sprintf(pathBuffer, ClassFilePath.data(), targetCategory);
         } else {
@@ -130,6 +140,42 @@ public:
         }
     }
 
+    int getRecordBatch(BasePos *chunks, int count, BlockEntry *cacheBlock) {
+        {
+            //MutexLockGuard cacheLockGuard(cacheLock);
+            access++;
+            int vadID = -1;
+            for (int i = 0; i < 6; i++) {
+                if (chunks[i].valid) {
+                    vadID = i;
+                    auto iterCache = cacheMap.find(chunks[i].sha1Fp);
+                    if (iterCache == cacheMap.end()) {
+                        //
+                    } else {
+                        success++;
+                        *cacheBlock = iterCache->second;
+                        read += cacheBlock->length;
+                        {
+                            freshLastVisit(iterCache);
+                        }
+                        return 1;
+                    }
+                }
+            }
+            loadBaseChunks(chunks[vadID]);
+            auto iterCache = cacheMap.find(chunks[vadID].sha1Fp);
+            if (iterCache == cacheMap.end()) {
+                printf("id:%d, co:%u\n", vadID, chunks[vadID].CategoryOrder);
+            }
+            assert(iterCache != cacheMap.end());
+            *cacheBlock = iterCache->second;
+            {
+                freshLastVisit(iterCache);
+            }
+            return 1;
+        }
+    }
+
     int getRecord(const SHA1FP &sha1Fp, BlockEntry *cacheBlock) {
         {
             //MutexLockGuard cacheLockGuard(cacheLock);
@@ -153,11 +199,16 @@ private:
     void freshLastVisit(
             std::unordered_map<SHA1FP, BlockEntry, TupleHasher, TupleEqualer>::iterator iter) {
         //MutexLockGuard lruLockGuard(lruLock);
-        auto iterl = lruList.find(iter->second.lastVisit);
-        lruList[index] = iterl->second;
-        lruList.erase(iterl);
-        iter->second.lastVisit = index;
-        index++;
+        iter->second.score++;
+        if (iter->second.score > UpdateScore) {
+            iter->second.score = 0;
+            auto iterl = lruList.find(iter->second.lastVisit);
+            lruList[index] = iterl->second;
+            lruList.erase(iterl);
+            iter->second.lastVisit = index;
+            index++;
+        }
+
     }
 
     struct timeval t0, t1;
@@ -172,6 +223,7 @@ private:
     uint64_t loadingTime = 0;
     uint64_t items = 0;
     uint64_t currentVersion = 0;
+    uint64_t selfHit = 0;
 
     uint8_t* preloadBuffer;
 };

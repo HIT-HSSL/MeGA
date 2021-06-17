@@ -37,16 +37,31 @@ public:
         sprintf(pathBuffer, ClassFilePath.data(), classId);
         writer = new FileOperator(pathBuffer, FileOpenType::Write);
         syncCounter = 0;
+//        writeBuffer = {
+//                (char *) malloc(FLAGS_WriteBufferLength),
+//                FLAGS_WriteBufferLength,
+//                FLAGS_WriteBufferLength,
+//        }; old
         writeBuffer = {
                 (char *) malloc(FLAGS_WriteBufferLength),
                 FLAGS_WriteBufferLength,
-                FLAGS_WriteBufferLength,
+                0,
         };
 
         syncWorker = new std::thread(std::bind(&ChunkWriterManager::ChunkWriterManagerCallback, this));
     }
 
     int writeClass(uint8_t *header, uint64_t headerLen, uint8_t *buffer, uint64_t bufferLen) {
+        writer->write((uint8_t *) header, headerLen);
+        writer->write((uint8_t *) buffer, bufferLen);
+        writeBuffer.available += headerLen + bufferLen;
+        if (writeBuffer.available >= writeBuffer.totalLength) {
+            classFlush();
+        }
+        return 0;
+    }
+
+    int writeClass_old(uint8_t *header, uint64_t headerLen, uint8_t *buffer, uint64_t bufferLen) {
 
         if ((headerLen + bufferLen) > writeBuffer.available) {
             classFlush();
@@ -73,17 +88,27 @@ public:
 
 private:
     int classFlush() {
-        uint64_t flushLength = writeBuffer.totalLength - writeBuffer.available;
-        writer->write((uint8_t *) writeBuffer.buffer, flushLength);
-        writeBuffer.available = writeBuffer.totalLength;
-        if(syncCounter >= FLAGS_ChunkWriterManagerFlushThreshold){
+        writeBuffer.available = 0;
+        if (syncCounter >= FLAGS_ChunkWriterManagerFlushThreshold) {
             addTask(classId);
             syncCounter = 0;
-        }else{
+        } else {
             syncCounter++;
         }
         return 0;
+    }
 
+    int classFlush_old() {
+        uint64_t flushLength = writeBuffer.totalLength - writeBuffer.available;
+        writer->write((uint8_t *) writeBuffer.buffer, flushLength);
+        writeBuffer.available = writeBuffer.totalLength;
+        if (syncCounter >= FLAGS_ChunkWriterManagerFlushThreshold) {
+            addTask(classId);
+            syncCounter = 0;
+        } else {
+            syncCounter++;
+        }
+        return 0;
     }
 
     int addTask(uint64_t classId) {

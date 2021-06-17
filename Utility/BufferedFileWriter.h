@@ -11,12 +11,23 @@
 
 class BufferedFileWriter {
 public:
-    BufferedFileWriter(FileOperator *fd, uint64_t size, uint64_t st) : fileOperator(fd), bufferSize(size), syncThreshold(st) {
+    BufferedFileWriter(FileOperator *fd, uint64_t size, uint64_t st) : fileOperator(fd), bufferSize(size),
+                                                                       syncThreshold(st) {
         writeBuffer = (uint8_t *) malloc(bufferSize);
-        writeBufferAvailable = bufferSize;
+        //writeBufferAvailable = bufferSize; olad
+        writeBufferAvailable = 0;
     }
 
     int write(uint8_t *data, int dataLen) {
+        fileOperator->write(data, dataLen);
+        writeBufferAvailable += dataLen;
+        if (writeBufferAvailable >= bufferSize) {
+            flush();
+        }
+        return 0;
+    }
+
+    int write_old(uint8_t *data, int dataLen) {
         if (dataLen > writeBufferAvailable) {
             flush();
         }
@@ -35,10 +46,19 @@ public:
 private:
 
     int flush() {
+        writeBufferAvailable = 0;
+        counter++;
+        if (counter >= syncThreshold) {
+            fileOperator->fdatasync();
+            counter = 0;
+        }
+    }
+
+    int flush_old() {
         fileOperator->write(writeBuffer, bufferSize - writeBufferAvailable);
         writeBufferAvailable = bufferSize;
         counter++;
-        if(counter >= syncThreshold){
+        if (counter >= syncThreshold) {
             fileOperator->fdatasync();
             counter = 0;
         }

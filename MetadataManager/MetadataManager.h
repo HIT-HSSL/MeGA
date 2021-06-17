@@ -62,16 +62,16 @@ enum class LookupResult {
 };
 
 struct FPIndex{
-    uint64_t duplicateSize = 0;
+    uint64_t migrateSize = 0;
     uint64_t totalSize = 0;
     std::unordered_map<SHA1FP, FPTableEntry, TupleHasher, TupleEqualer> fpTable;
 
     void rolling(FPIndex& alter){
         fpTable.clear();
         fpTable.swap(alter.fpTable);
-        duplicateSize = alter.duplicateSize;
+        migrateSize = alter.migrateSize;
         totalSize = alter.totalSize;
-        alter.duplicateSize = 0;
+        alter.migrateSize = 0;
         alter.totalSize = 0;
     }
 };
@@ -187,14 +187,14 @@ public:
         if (neighborDedupIter == earlierTable.fpTable.end()) {
             return LookupResult::Unique;
         } else {
-            laterTable.duplicateSize += chunkSize + sizeof(BlockHeader);
+            laterTable.migrateSize += chunkSize + sizeof(BlockHeader);
             *fpTableEntry = neighborDedupIter->second;
             return LookupResult::AdjacentDedup;
         }
     }
 
     LookupResult similarityLookup(const SimilarityFeatures& similarityFeatures, BasePos* basePos){
-        memset(basePos, 0, sizeof(BasePos) * 3);
+        memset(basePos, 0, sizeof(BasePos) * 6);
         bool result = false;
         auto iter1 = earlierSimilarityTable.simIndex1.find(similarityFeatures.feature1);
         if (iter1 != earlierSimilarityTable.simIndex1.end()) {
@@ -214,6 +214,24 @@ public:
             basePos[2].valid = 1;
             result = true;
         }
+        auto iter4 = laterSimilarityTable.simIndex1.find(similarityFeatures.feature1);
+        if (iter4 != laterSimilarityTable.simIndex1.end()) {
+            basePos[3] = iter4->second;
+            basePos[3].valid = 1;
+            result = true;
+        }
+        auto iter5 = laterSimilarityTable.simIndex2.find(similarityFeatures.feature2);
+        if (iter5 != laterSimilarityTable.simIndex2.end()) {
+            basePos[4] = iter5->second;
+            basePos[4].valid = 1;
+            result = true;
+        }
+        auto iter6 = laterSimilarityTable.simIndex3.find(similarityFeatures.feature3);
+        if (iter6 != laterSimilarityTable.simIndex3.end()) {
+            basePos[5] = iter6->second;
+            basePos[5].valid = 1;
+            result = true;
+        }
         if (result) {
             return LookupResult::Similar;
         } else {
@@ -222,7 +240,7 @@ public:
     }
 
     uint64_t arrangementGetTruncateSize(){
-        return earlierTable.totalSize - laterTable.duplicateSize;
+        return earlierTable.totalSize - laterTable.migrateSize;
     }
 
     int arrangementLookup(const SHA1FP &sha1Fp) {
@@ -255,7 +273,7 @@ public:
         assert(pp == laterTable.fpTable.end());
 
         laterTable.fpTable.insert({sha1Fp, {1, categoryOrder, oriLength, baseFP}});
-        laterTable.duplicateSize -= diffLength;
+        laterTable.totalSize -= diffLength;
 
         return 0;
     }
@@ -283,7 +301,7 @@ public:
         auto pp = laterTable.fpTable.find(sha1Fp);
         if(pp == laterTable.fpTable.end()) {
             laterTable.fpTable.insert({sha1Fp, fpTableEntry});
-            laterTable.duplicateSize += fpTableEntry.oriLength + sizeof(BlockHeader); // updated
+            laterTable.migrateSize += fpTableEntry.oriLength + sizeof(BlockHeader); // updated
         }
 
         return 0;
@@ -338,7 +356,7 @@ public:
             fileOperator.write((uint8_t*)&item.second, sizeof(FPTableEntry));
         }
         printf("earlier table saves %lu items\n", size);
-        printf("earlier total size:%lu, duplicate size:%lu\n", earlierTable.totalSize, earlierTable.duplicateSize);
+        printf("earlier total size:%lu, duplicate size:%lu\n", earlierTable.totalSize, earlierTable.migrateSize);
         size = earlierSimilarityTable.simIndex1.size();
         fileOperator.write((uint8_t*)&size, sizeof(uint64_t));
         for(auto item : earlierSimilarityTable.simIndex1){
@@ -369,7 +387,7 @@ public:
             fileOperator.write((uint8_t*)&item.second, sizeof(FPTableEntry));
         }
         printf("later table saves %lu items\n", size);
-        printf("later total size:%lu, duplicate size:%lu\n", laterTable.totalSize, laterTable.duplicateSize);
+        printf("later total size:%lu, duplicate size:%lu\n", laterTable.totalSize, laterTable.migrateSize);
         size = laterSimilarityTable.simIndex1.size();
         fileOperator.write((uint8_t*)&size, sizeof(uint64_t));
         for(auto item : laterSimilarityTable.simIndex1){
