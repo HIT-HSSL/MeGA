@@ -132,7 +132,7 @@ private:
 //                            r = baseCache.getRecord(tempBasePos.sha1Fp, &tempBlockEntry);
 //                            assert(r);
 //                        }
-                        int r = baseCache.getRecordBatch(bpResult, 6, &tempBlockEntry);
+                        int r = baseCache.getRecordBatch(bpResult, 6, &tempBlockEntry, &tempBasePos);
                         // calculate delta
                         uint8_t *tempBuffer = (uint8_t *) malloc(dedupTask.length);
                         usize_t deltaSize;

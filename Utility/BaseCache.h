@@ -140,13 +140,14 @@ public:
         }
     }
 
-    int getRecordBatch(BasePos *chunks, int count, BlockEntry *cacheBlock) {
+    int getRecordBatch(BasePos *chunks, int count, BlockEntry *cacheBlock, BasePos *selectedBase) {
         {
             //MutexLockGuard cacheLockGuard(cacheLock);
             access++;
             int vadID = -1;
             for (int i = 0; i < 6; i++) {
                 if (chunks[i].valid) {
+                    *selectedBase = chunks[i];
                     vadID = i;
                     auto iterCache = cacheMap.find(chunks[i].sha1Fp);
                     if (iterCache == cacheMap.end()) {

@@ -95,7 +95,6 @@ private:
                                                        writeTask.buffer + writeTask.pos, writeTask.length);
                         bufferedFileWriter->write((uint8_t * ) & blockHeader, sizeof(BlockHeader));
                         recipeLength += blockHeader.length;
-//                        logicFileOperator->write((uint8_t * ) & blockHeader, sizeof(BlockHeader));
                         break;
                     case 1: //Internal
                         if(writeTask.deltaTag){
@@ -103,7 +102,6 @@ private:
                             blockHeader.oriLength = writeTask.oriLength;
                         }
                         bufferedFileWriter->write((uint8_t * ) & blockHeader, sizeof(BlockHeader));
-//                        logicFileOperator->write((uint8_t * ) & blockHeader, sizeof(BlockHeader));
                         recipeLength += blockHeader.length;
                         break;
                     case 2: //Adjacent
@@ -112,10 +110,6 @@ private:
                             blockHeader.oriLength = writeTask.oriLength;
                         }
                         bufferedFileWriter->write((uint8_t * ) & blockHeader, sizeof(BlockHeader));
-//                        chunkWriterManager->writeClass(writeTask.oldClass + TotalVersion - 1,
-//                                                       (uint8_t * ) & blockHeader, sizeof(BlockHeader),
-//                                                       writeTask.buffer + writeTask.pos, writeTask.length);
-//                        logicFileOperator->write((uint8_t * ) & blockHeader, sizeof(BlockHeader));
                         recipeLength += blockHeader.length;
                         break;
                     case 4: //Similar
