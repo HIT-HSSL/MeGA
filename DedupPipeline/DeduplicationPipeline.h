@@ -137,6 +137,19 @@ private:
                         uint8_t *tempBuffer = (uint8_t *) malloc(dedupTask.length);
                         usize_t deltaSize;
                         gettimeofday(&dt1, NULL);
+
+//                        FileOperator ff("1.log", FileOpenType::Write);
+//                        size_t rr = ff.write((uint8_t*)dedupTask.buffer+dedupTask.pos, dedupTask.length);
+//                        ff.fsync();
+//                        printf("rr:%lu\n", rr);
+//
+//                        FileOperator ff2("2.log", FileOpenType::Write);
+//                        rr = ff2.write((uint8_t*)tempBlockEntry.block, tempBlockEntry.length);
+//                        ff2.fsync();
+//                        printf("rr:%lu\n", rr);
+//
+//                        printf("il:%lu, bl:%lu\n", dedupTask.length, tempBlockEntry.length);
+
                         if (tempBlockEntry.length >= dedupTask.length) {
                             r = xd3_encode_memory(dedupTask.buffer + dedupTask.pos, dedupTask.length,
                                                   tempBlockEntry.block, dedupTask.length, tempBuffer, &deltaSize,

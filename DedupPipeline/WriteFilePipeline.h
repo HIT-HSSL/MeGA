@@ -90,6 +90,7 @@ private:
                 };
                 switch (writeTask.type) {
                     case 0: //Unique
+                        oriBuffer = writeTask.buffer;
                         blockHeader.sFeatures = writeTask.similarityFeatures;
                         chunkWriterManager->writeClass((uint8_t * ) & blockHeader, sizeof(BlockHeader),
                                                        writeTask.buffer + writeTask.pos, writeTask.length);
@@ -137,7 +138,7 @@ private:
                     duration += (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
 
                     writeTask.countdownLatch->countDown();
-                    free(writeTask.buffer);
+                    free(oriBuffer);
                 }
 
             }
@@ -159,7 +160,7 @@ private:
     MutexLock mutexLock;
     Condition condition;
     uint64_t duration = 0;
-
+    uint8_t *oriBuffer;
 };
 
 static WriteFilePipeline *GlobalWriteFilePipelinePtr;

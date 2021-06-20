@@ -70,11 +70,11 @@ public:
         }
     }
 
-    uint64_t read(uint8_t *buffer, uint64_t length) {
+    size_t read(uint8_t *buffer, uint64_t length) {
         return fread(buffer, 1, length, file);
     }
 
-    uint64_t write(uint8_t *buffer, uint64_t length) {
+    size_t write(uint8_t *buffer, uint64_t length) {
         return fwrite(buffer, 1, length, file);
     }
 
@@ -91,7 +91,7 @@ public:
         int r = stat(path.c_str(), &statBuffer);
         if(!r){
             return statBuffer.st_size;
-        }else{
+        } else {
             return 0;
         }
 
@@ -99,6 +99,11 @@ public:
 
     int fdatasync() {
         return ::fdatasync(file->_fileno);
+    }
+
+    int fsync() {
+        return fflush(file);
+        //return ::fsync(file->_fileno);
     }
 
     int getFd() {
