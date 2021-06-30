@@ -21,15 +21,16 @@ DEFINE_string(RestorePath,
 DEFINE_uint64(RestoreRecipe,
 1, "restore recipe");
 DEFINE_string(task,
-"", "task type");
+              "", "task type");
 DEFINE_string(BatchFilePath,
-"", "batch process file path");
+              "", "batch process file path");
 DEFINE_string(ConfigFile,
-        "", "config path");
+              "", "config path");
 DEFINE_string(InputFile,
               "", "input path");
 DEFINE_bool(ApplyArrangement,
-              true, "Whether apply arrangement");
+            true, "Whether apply arrangement");
+DEFINE_bool(delta, true, "whether delta compression");
 
 std::string LogicFilePath;
 std::string ClassFilePath;
@@ -40,6 +41,7 @@ std::string ClassFileAppendPath;
 uint64_t TotalVersion;
 uint64_t RetentionTime;
 std::string KVPath;
+bool DeltaSwitch;
 
 uint64_t  do_backup(const std::string& path){
     StorageTask storageTask;
@@ -109,6 +111,7 @@ int main(int argc, char **argv) {
     std::string writeStr("write");
     std::string batchStr("batch");
     std::string eliminateStr("delete");
+    DeltaSwitch = FLAGS_delta;
 
     Manifest manifest;
     {

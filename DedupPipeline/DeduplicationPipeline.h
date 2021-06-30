@@ -18,6 +18,8 @@
 #include "../Utility/xdelta3.h"
 #include "../Utility/BaseCache.h"
 
+extern bool DeltaSwitch;
+
 class DeduplicationPipeline {
 public:
     DeduplicationPipeline()
@@ -111,44 +113,20 @@ private:
 
                 totalLength += dedupTask.length;
 
-                if(lookupResult == LookupResult::Unique){
+                if(lookupResult == LookupResult::Unique) {
                     chunkCounter[(int) lookupResult]++;
+                    LookupResult similarLookupResult = LookupResult::Dissimilar;
                     odessCalculation(dedupTask.buffer + dedupTask.pos, dedupTask.length, &tempSimilarityFeatures);
-                    LookupResult similarLookupResult = GlobalMetadataManagerPtr->similarityLookup(
-                            tempSimilarityFeatures, bpResult);
+                    if (DeltaSwitch) {
+                        similarLookupResult = GlobalMetadataManagerPtr->similarityLookup(
+                                tempSimilarityFeatures, bpResult);
+                    }
                     if (similarLookupResult == LookupResult::Similar) {
-//                        // pick a base
-//                        int r = 0;
-//                        for (int i = 0; i < 6; i++) {
-//                            if (bpResult[i].valid) {
-//                                tempBasePos = bpResult[i];
-//                                r = baseCache.getRecord(bpResult[i].sha1Fp, &tempBlockEntry);
-//                                if (r) break;
-//                            }
-//                        }
-//                        // load from disk
-//                        if (!r) {
-//                            baseCache.loadBaseChunks(tempBasePos);
-//                            r = baseCache.getRecord(tempBasePos.sha1Fp, &tempBlockEntry);
-//                            assert(r);
-//                        }
                         int r = baseCache.getRecordBatch(bpResult, 6, &tempBlockEntry, &tempBasePos);
                         // calculate delta
                         uint8_t *tempBuffer = (uint8_t *) malloc(dedupTask.length);
                         usize_t deltaSize;
                         gettimeofday(&dt1, NULL);
-
-//                        FileOperator ff("1.log", FileOpenType::Write);
-//                        size_t rr = ff.write((uint8_t*)dedupTask.buffer+dedupTask.pos, dedupTask.length);
-//                        ff.fsync();
-//                        printf("rr:%lu\n", rr);
-//
-//                        FileOperator ff2("2.log", FileOpenType::Write);
-//                        rr = ff2.write((uint8_t*)tempBlockEntry.block, tempBlockEntry.length);
-//                        ff2.fsync();
-//                        printf("rr:%lu\n", rr);
-//
-//                        printf("il:%lu, bl:%lu\n", dedupTask.length, tempBlockEntry.length);
 
                         if (tempBlockEntry.length >= dedupTask.length) {
                             r = xd3_encode_memory(dedupTask.buffer + dedupTask.pos, dedupTask.length,
