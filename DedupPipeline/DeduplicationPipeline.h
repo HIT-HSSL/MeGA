@@ -118,16 +118,23 @@ private:
                     LookupResult similarLookupResult = LookupResult::Dissimilar;
                     odessCalculation(dedupTask.buffer + dedupTask.pos, dedupTask.length, &tempSimilarityFeatures);
                     if (DeltaSwitch) {
-                        similarLookupResult = GlobalMetadataManagerPtr->similarityLookup(
-                                tempSimilarityFeatures, bpResult);
+                        similarLookupResult = GlobalMetadataManagerPtr->similarityLookupSimple(tempSimilarityFeatures,
+                                                                                               &tempBasePos);
+//                        similarLookupResult = GlobalMetadataManagerPtr->similarityLookup(
+//                                tempSimilarityFeatures, bpResult);
                     }
                     if (similarLookupResult == LookupResult::Similar) {
-                        int r = baseCache.getRecordBatch(bpResult, 6, &tempBlockEntry, &tempBasePos);
+                        //int r = baseCache.getRecordBatch(bpResult, 6, &tempBlockEntry, &tempBasePos);
+                        int r = baseCache.getRecord(&tempBasePos, &tempBlockEntry);
+                        assert(r);
                         // calculate delta
-                        uint8_t *tempBuffer = (uint8_t *) malloc(dedupTask.length);
+                        uint8_t *tempBuffer = (uint8_t *) malloc(65536);
                         usize_t deltaSize;
                         gettimeofday(&dt1, NULL);
 
+//                        r = xd3_encode_memory(dedupTask.buffer + dedupTask.pos, dedupTask.length,
+//                                              tempBlockEntry.block, tempBlockEntry.length, tempBuffer, &deltaSize,
+//                                              dedupTask.length, XD3_COMPLEVEL_1);
                         if (tempBlockEntry.length >= dedupTask.length) {
                             r = xd3_encode_memory(dedupTask.buffer + dedupTask.pos, dedupTask.length,
                                                   tempBlockEntry.block, dedupTask.length, tempBuffer, &deltaSize,

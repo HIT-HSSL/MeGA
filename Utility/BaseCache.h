@@ -177,14 +177,12 @@ public:
         }
     }
 
-    int getRecord(const SHA1FP &sha1Fp, BlockEntry *cacheBlock) {
+    int getRecord(BasePos *basePos, BlockEntry *cacheBlock) {
         {
             //MutexLockGuard cacheLockGuard(cacheLock);
             access++;
-            auto iterCache = cacheMap.find(sha1Fp);
-            if (iterCache == cacheMap.end()) {
-                return 0;
-            } else {
+            auto iterCache = cacheMap.find(basePos->sha1Fp);
+            if (iterCache != cacheMap.end()) {
                 success++;
                 *cacheBlock = iterCache->second;
                 read += cacheBlock->length;
@@ -192,6 +190,19 @@ public:
                     freshLastVisit(iterCache);
                 }
                 return 1;
+            }
+            loadBaseChunks(*basePos);
+            iterCache = cacheMap.find(basePos->sha1Fp);
+            if (iterCache != cacheMap.end()) {
+                success++;
+                *cacheBlock = iterCache->second;
+                read += cacheBlock->length;
+                {
+                    freshLastVisit(iterCache);
+                }
+                return 1;
+            } else {
+                assert(0);
             }
         }
     }

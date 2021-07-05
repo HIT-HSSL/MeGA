@@ -91,16 +91,43 @@ struct SimilarityIndex{
     }
 };
 
-uint64_t* gearMatrix;
-int* kArray;
-int* bArray;
-uint64_t* maxList;
+uint64_t *gearMatrix;
+int kArray[12] = {
+        1007,
+        459326,
+        48011,
+        935033,
+        831379,
+        530326,
+        384145,
+        687288,
+        846569,
+        654457,
+        910678,
+        48431
+};
+int bArray[12] = {
+        1623698648,
+        -1676223803,
+        -687657152,
+        1116486740,
+        115856562,
+        -2129903346,
+        897592878,
+        -148337918,
+        -1948941976,
+        1506843910,
+        -1582821563,
+        1441557442,
+};
+uint64_t *maxList;
 
-void odessInit(){
-    gearMatrix = (uint64_t*)malloc(sizeof(uint64_t)*SymbolTypes);
-    kArray = (int*)malloc(sizeof(int)*12);
-    bArray = (int*)malloc(sizeof(int)*12);
-    maxList = (uint64_t*)malloc(sizeof(uint64_t) * 12);
+void odessInit() {
+    gearMatrix = (uint64_t *) malloc(sizeof(uint64_t) * SymbolTypes);
+//    kArray = (int*)malloc(sizeof(int)*12);
+//    bArray = (int*)malloc(sizeof(int)*12);
+    maxList = (uint64_t *) malloc(sizeof(uint64_t) * 12);
+    memset(maxList, 0, sizeof(uint64_t) * 12);
     char seed[SeedLength];
     for (int i = 0; i < SymbolTypes; i++) {
         for (int j = 0; j < SeedLength; j++) {
@@ -117,27 +144,25 @@ void odessInit(){
         memcpy(&gearMatrix[i], md5_result, sizeof(uint64_t));
     }
 
-    {
-        std::default_random_engine randomEngine;
-        std::uniform_int_distribution<uint64_t> distributionA;
-        std::uniform_int_distribution<uint64_t> distributionB;
-
-        std::uniform_int_distribution<uint64_t>::param_type paramA(0x0000000000100000, 0x0000000010000000);
-        std::uniform_int_distribution<uint64_t>::param_type paramB(0x0000000000100000, 0x00000000ffffffff);
-        distributionA.param(paramA);
-        distributionB.param(paramB);
-        for (int i = 0; i < 12; i++) {
-            kArray[i] = distributionA(randomEngine);
-            bArray[i] = distributionB(randomEngine);
-            maxList[i] = 0; // min uint64_t
-        }
-    }
+//    {
+//        std::default_random_engine randomEngine;
+//        std::uniform_int_distribution<uint64_t> distributionA;
+//        std::uniform_int_distribution<uint64_t> distributionB;
+//
+//        std::uniform_int_distribution<uint64_t>::param_type paramA(0x0000000000001000, 0x0000000001000000);
+//        std::uniform_int_distribution<uint64_t>::param_type paramB(0x0000000000100000, 0x00000000ffffffff);
+//        distributionA.param(paramA);
+//        distributionB.param(paramB);
+//        for (int i = 0; i < 12; i++) {
+//            kArray[i] = distributionA(randomEngine);
+//            bArray[i] = distributionB(randomEngine);
+//            maxList[i] = 0; // min uint64_t
+//        }
+//    }
 }
 
 void odessDeinit(){
     free(gearMatrix);
-    free(kArray);
-    free(bArray);
     free(maxList);
 }
 
@@ -193,7 +218,41 @@ public:
         }
     }
 
-    LookupResult similarityLookup(const SimilarityFeatures& similarityFeatures, BasePos* basePos){
+    LookupResult similarityLookupSimple(const SimilarityFeatures &similarityFeatures, BasePos *basePos) {
+        auto iter1 = earlierSimilarityTable.simIndex1.find(similarityFeatures.feature1);
+        if (iter1 != earlierSimilarityTable.simIndex1.end()) {
+            *basePos = iter1->second;
+            return LookupResult::Similar;
+        }
+        auto iter2 = earlierSimilarityTable.simIndex2.find(similarityFeatures.feature2);
+        if (iter2 != earlierSimilarityTable.simIndex2.end()) {
+            *basePos = iter2->second;
+            return LookupResult::Similar;
+        }
+        auto iter3 = earlierSimilarityTable.simIndex3.find(similarityFeatures.feature3);
+        if (iter3 != earlierSimilarityTable.simIndex3.end()) {
+            *basePos = iter3->second;
+            return LookupResult::Similar;
+        }
+        auto iter4 = laterSimilarityTable.simIndex1.find(similarityFeatures.feature1);
+        if (iter4 != laterSimilarityTable.simIndex1.end()) {
+            *basePos = iter4->second;
+            return LookupResult::Similar;
+        }
+        auto iter5 = laterSimilarityTable.simIndex2.find(similarityFeatures.feature2);
+        if (iter5 != laterSimilarityTable.simIndex2.end()) {
+            *basePos = iter5->second;
+            return LookupResult::Similar;
+        }
+        auto iter6 = laterSimilarityTable.simIndex3.find(similarityFeatures.feature3);
+        if (iter6 != laterSimilarityTable.simIndex3.end()) {
+            *basePos = iter6->second;
+            return LookupResult::Similar;
+        }
+        return LookupResult::Dissimilar;
+    }
+
+    LookupResult similarityLookup(const SimilarityFeatures &similarityFeatures, BasePos *basePos) {
         memset(basePos, 0, sizeof(BasePos) * 6);
         bool result = false;
         auto iter1 = earlierSimilarityTable.simIndex1.find(similarityFeatures.feature1);
