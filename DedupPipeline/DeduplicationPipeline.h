@@ -23,10 +23,12 @@ struct BaseChunkPositions {
     uint64_t quantizedOffset: 42;
 };
 
+DEFINE_uint64(CappingThreshold,
+              10, "CappingThreshold");
+
 extern bool DeltaSwitch;
 
-uint64_t preloadQuantizor = 4 * 1024 * 1024;
-uint64_t LeastBasechunkThreshold = 10;
+uint64_t preloadQuantizer = 4 * 1024 * 1024;
 
 class DeduplicationPipeline {
 public:
@@ -161,7 +163,7 @@ private:
                 uint64_t key;
                 BaseChunkPositions *bcp = (BaseChunkPositions *) &key;
                 bcp->category = entry.basePos.CategoryOrder;
-                bcp->quantizedOffset = entry.basePos.offset / preloadQuantizor;
+                bcp->quantizedOffset = entry.basePos.offset / preloadQuantizer;
                 auto iter = baseChunkPositions.find(key);
                 if (iter == baseChunkPositions.end()) {
                     baseChunkPositions.insert({key, 1});
@@ -171,7 +173,7 @@ private:
             }
         }
         for (auto &entry: baseChunkPositions) {
-            if (entry.second < LeastBasechunkThreshold) {
+            if (entry.second < FLAGS_CappingThreshold) {
                 entry.second = 0;
             }
         }
@@ -180,7 +182,7 @@ private:
                 uint64_t key;
                 BaseChunkPositions *bcp = (BaseChunkPositions *) &key;
                 bcp->category = entry.basePos.CategoryOrder;
-                bcp->quantizedOffset = entry.basePos.offset / preloadQuantizor;
+                bcp->quantizedOffset = entry.basePos.offset / preloadQuantizer;
                 if (baseChunkPositions[key] == 0) {
                     entry.deltaReject = true;
                 }
