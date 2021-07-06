@@ -22,8 +22,9 @@ extern std::string ManifestPath;
 class ManifestWriter{
 public:
     ManifestWriter(const Manifest& manifest){
-        FileOperator fileOperator((char*)ManifestPath.data(), FileOpenType::Write);
-        fileOperator.write((uint8_t*)&manifest, sizeof(Manifest));
+        FileOperator fileOperator((char *) ManifestPath.data(), FileOpenType::Write);
+        assert(fileOperator.ok());
+        fileOperator.write((uint8_t *) &manifest, sizeof(Manifest));
     }
 private:
 };

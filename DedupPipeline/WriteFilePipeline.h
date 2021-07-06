@@ -76,7 +76,6 @@ private:
             }
 
             for (auto &writeTask : taskList) {
-
                 if (!logicFileOperator) {
                     sprintf(buffer, LogicFilePath.c_str(), writeTask.fileID);
                     logicFileOperator = new FileOperator(buffer, FileOpenType::Write);

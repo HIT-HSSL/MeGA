@@ -52,15 +52,6 @@ struct FPTableEntry {
     };
 };
 
-enum class LookupResult {
-    Unique,
-    InternalDedup,
-    AdjacentDedup,
-    InternalDeltaDedup, // reference to a delta chunk
-    Similar,
-    Dissimilar,
-};
-
 struct FPIndex{
     uint64_t migrateSize = 0;
     uint64_t totalSize = 0;
@@ -551,11 +542,40 @@ public:
         return 0;
     }
 
+//    LookupResult localLookup(uint64_t s1, uint64_t s2, uint64_t s3){
+//        auto iter1 = localSF1.find(s1);
+//        if (iter1 != localSF1.end()) {
+//            return LookupResult::Similar;
+//        }
+//        auto iter2 = localSF2.find(s2);
+//        if (iter2 != localSF2.end()) {
+//            return LookupResult::Similar;
+//        }
+//        auto iter3 = localSF3.find(s3);
+//        if (iter3 != localSF3.end()) {
+//            return LookupResult::Similar;
+//        }
+//    }
+//
+//    int localAdd(uint64_t s1, uint64_t s2, uint64_t s3){
+//        localSF1.insert(s1);
+//        localSF2.insert(s2);
+//        localSF3.insert(s3);
+//    }
+//
+//    int localClear(){
+//        localSF1.clear();
+//        localSF2.clear();
+//        localSF3.clear();
+//    }
+
 private:
     FPIndex earlierTable;
     FPIndex laterTable;
     SimilarityIndex earlierSimilarityTable;
     SimilarityIndex laterSimilarityTable;
+
+    //std::unordered_set<uint64_t> localSF1, localSF2, localSF3;
 
     MutexLock tableLock;
 };

@@ -16,12 +16,6 @@
 
 extern std::string ClassFileAppendPath;
 
-struct BlockEntry {
-    uint8_t *block;
-    uint64_t length;
-    uint64_t lastVisit;
-    uint64_t score = 0;
-};
 
 uint64_t TotalSizeThreshold = 400 * 1024 * 1024;
 
@@ -177,7 +171,23 @@ public:
         }
     }
 
-    int getRecord(BasePos *basePos, BlockEntry *cacheBlock) {
+    int getRecord(const BasePos *basePos, BlockEntry *cacheBlock) {
+        {
+            //MutexLockGuard cacheLockGuard(cacheLock);
+            auto iterCache = cacheMap.find(basePos->sha1Fp);
+            if (iterCache != cacheMap.end()) {
+                *cacheBlock = iterCache->second;
+                read += cacheBlock->length;
+                {
+                    freshLastVisit(iterCache);
+                }
+                return 1;
+            }
+            return 0;
+        }
+    }
+
+    int getRecordWithoutFresh(const BasePos *basePos, BlockEntry *cacheBlock) {
         {
             //MutexLockGuard cacheLockGuard(cacheLock);
             access++;
@@ -186,24 +196,22 @@ public:
                 success++;
                 *cacheBlock = iterCache->second;
                 read += cacheBlock->length;
-                {
-                    freshLastVisit(iterCache);
-                }
                 return 1;
             }
-            loadBaseChunks(*basePos);
-            iterCache = cacheMap.find(basePos->sha1Fp);
+            return 0;
+        }
+    }
+
+    int getRecordNoFS(const BasePos *basePos, BlockEntry *cacheBlock) {
+        {
+            //MutexLockGuard cacheLockGuard(cacheLock);
+            auto iterCache = cacheMap.find(basePos->sha1Fp);
             if (iterCache != cacheMap.end()) {
-                success++;
                 *cacheBlock = iterCache->second;
                 read += cacheBlock->length;
-                {
-                    freshLastVisit(iterCache);
-                }
                 return 1;
-            } else {
-                assert(0);
             }
+            return 0;
         }
     }
 

@@ -16,7 +16,18 @@ struct SHA1FP {
     }
 };
 
-struct SimilarityFeatures{
+
+enum class LookupResult {
+    Unique,
+    InternalDedup,
+    AdjacentDedup,
+    InternalDeltaDedup, // reference to a delta chunk
+    Similar,
+    Dissimilar,
+};
+
+
+struct SimilarityFeatures {
     uint64_t feature1;
     uint64_t feature2;
     uint64_t feature3;
@@ -31,7 +42,7 @@ struct BasePos {
 };
 
 struct DeltaTask{
-    uint8_t* buffer;
+    uint8_t *buffer;
     uint64_t pos;
     uint64_t length;
     CountdownLatch *countdownLatch = nullptr;
@@ -43,6 +54,14 @@ struct DeltaTask{
 };
 
 
+struct BlockEntry {
+    uint8_t *block;
+    uint64_t length;
+    uint64_t lastVisit;
+    uint64_t score = 0;
+};
+
+
 struct DedupTask {
     uint8_t *buffer;
     uint64_t pos;
@@ -51,6 +70,12 @@ struct DedupTask {
     uint64_t fileID;
     CountdownLatch *countdownLatch = nullptr;
     uint64_t index;
+    SimilarityFeatures similarityFeatures;
+    BasePos basePos;
+    bool inCache;
+    LookupResult lookupResult;
+    bool deltaReject = false;
+    BlockEntry availBase;
 };
 
 enum class WriteTaskType{
