@@ -133,28 +133,14 @@ private:
                 if (DeltaSwitch) {
                     similarLookupResult = GlobalMetadataManagerPtr->similarityLookupSimple(entry.similarityFeatures,
                                                                                            &tempBasePos);
-//                        similarLookupResult = GlobalMetadataManagerPtr->similarityLookup(
-//                                tempSimilarityFeatures, bpResult);
                 }
                 if (similarLookupResult == LookupResult::Similar) {
-                    //int r = baseCache.getRecordBatch(bpResult, 6, &tempBlockEntry, &tempBasePos);
                     int r = baseCache.getRecord(&tempBasePos, &tempBlockEntry);
-                    if (r) {
-                        entry.availBase.block = (uint8_t *) malloc(tempBlockEntry.length);
-                        entry.availBase.length = tempBlockEntry.length;
-                        memcpy(entry.availBase.block, tempBlockEntry.block, tempBlockEntry.length);
-                    }
                     entry.lookupResult = similarLookupResult;
                     entry.basePos = tempBasePos;
                     entry.inCache = r;
 
                 } else {
-//                    similarLookupResult = GlobalMetadataManagerPtr->localLookup(entry.similarityFeatures.feature1, entry.similarityFeatures.feature2, entry.similarityFeatures.feature3);
-//                    if(similarLookupResult == LookupResult::Similar){
-//                        entry.lookupResult = similarLookupResult;
-//                        entry.inCache = 1;
-//                    }
-                    //GlobalMetadataManagerPtr->localAdd(entry.similarityFeatures.feature1, entry.similarityFeatures.feature2, entry.similarityFeatures.feature3);
                     // unique
                     // do nothing
                 }
@@ -166,7 +152,6 @@ private:
                 // do nothing
             }
         }
-        //GlobalMetadataManagerPtr->localClear();
     }
 
     void cappingBaseChunks(std::list<DedupTask> &dl) {
@@ -238,15 +223,11 @@ private:
                 if (similarLookupResult == LookupResult::Similar && !entry.deltaReject) {
                     lookupResult = LookupResult::Dissimilar;
                     int r;
-                    if (entry.inCache) {
-                        tempBlockEntry = entry.availBase;
-                    } else {
-                        r = baseCache.getRecordWithoutFresh(&entry.basePos, &tempBlockEntry);
-                        if (!r) {
-                            baseCache.loadBaseChunks(entry.basePos);
-                            r = baseCache.getRecordNoFS(&entry.basePos, &tempBlockEntry);
-                            assert(r);
-                        }
+                    r = baseCache.getRecordWithoutFresh(&entry.basePos, &tempBlockEntry);
+                    if (!r) {
+                        baseCache.loadBaseChunks(entry.basePos);
+                        r = baseCache.getRecordNoFS(&entry.basePos, &tempBlockEntry);
+                        assert(r);
                     }
 
                     // calculate delta
@@ -274,8 +255,6 @@ private:
                     }
                     gettimeofday(&dt2, NULL);
                     deltaTime += (dt2.tv_sec - dt1.tv_sec) * 1000000 + dt2.tv_usec - dt1.tv_usec;
-
-                    if (entry.inCache) free(entry.availBase.block);
 
                     if (r != 0 || deltaSize >= entry.length) {
                         // no delta

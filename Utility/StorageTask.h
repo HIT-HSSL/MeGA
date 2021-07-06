@@ -55,9 +55,9 @@ struct DeltaTask{
 
 
 struct BlockEntry {
-    uint8_t *block;
-    uint64_t length;
-    uint64_t lastVisit;
+    uint8_t *block = nullptr;
+    uint64_t length = 0;
+    uint64_t lastVisit = 0;
     uint64_t score = 0;
 };
 
@@ -72,7 +72,7 @@ struct DedupTask {
     uint64_t index;
     SimilarityFeatures similarityFeatures;
     BasePos basePos;
-    bool inCache;
+    bool inCache = 0;
     LookupResult lookupResult;
     bool deltaReject = false;
     BlockEntry availBase;
