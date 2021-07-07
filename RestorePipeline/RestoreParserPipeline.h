@@ -107,6 +107,8 @@ private:
             uint64_t readoffset = 0;
             uint8_t *buffer = restoreParseTask->buffer;
 
+            readLength += restoreParseTask->length;
+
             while (readoffset < leftLength) {
                 BlockHeader *pBH = (BlockHeader *) (buffer + readoffset);
                 assert(leftLength > sizeof(BlockHeader));

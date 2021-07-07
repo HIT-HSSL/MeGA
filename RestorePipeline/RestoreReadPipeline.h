@@ -93,10 +93,15 @@ private:
                 printf("append category # %lu is optional\n", baseClass);
                 // read unique chunks of following versions.
                 printf("The new categories of following versions..\n");
-                for (uint64_t i = restoreTask->maxVersion - restoreTask->fallBehind + 1; i<= restoreTask->maxVersion; i++){
+                for (uint64_t i = restoreTask->maxVersion - restoreTask->fallBehind + 1;
+                     i <= restoreTask->maxVersion; i++) {
                     categoryList.push_back(i * (i + 1) / 2);
-                    printf("category # %lu is required\n", i*(i+1)/2);
+                    printf("category # %lu is required\n", i * (i + 1) / 2);
                 }
+            }
+
+            for (auto &item : volumeList) {
+                readFromVolumeFile(item, restoreTask->targetVersion);
             }
 
             for (auto &item : categoryList) {
@@ -106,9 +111,7 @@ private:
                 readFromCategoryFile(item);
             }
 
-            for (auto &item : volumeList) {
-                readFromVolumeFile(item, restoreTask->targetVersion);
-            }
+
 
             RestoreParseTask *restoreParseTask = new RestoreParseTask(true);
             GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);

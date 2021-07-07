@@ -270,8 +270,13 @@ private:
                                                                  entry.length - deltaSize,
                                                                  entry.length);
                         // extend base lifecycle
-                        GlobalMetadataManagerPtr->extendBase(entry.basePos.sha1Fp,
-                                                             {0, entry.basePos.CategoryOrder, entry.basePos.length});
+                        FPTableEntry tFTE = {
+                                0,
+                                entry.basePos.CategoryOrder,
+                                entry.basePos.length,
+                                entry.basePos.length
+                        };
+                        GlobalMetadataManagerPtr->extendBase(entry.basePos.sha1Fp, tFTE);
                         // update task
                         writeTask.type = (int) similarLookupResult;
                         writeTask.buffer = tempBuffer;
@@ -306,16 +311,21 @@ private:
                 writeTask.oriLength = fpTableEntry.oriLength; //updated
                 writeTask.baseFP = fpTableEntry.baseFP;
                 writeTask.deltaTag = 1;
+                writeTask.length = fpTableEntry.length;
             } else if (lookupResult == LookupResult::AdjacentDedup) {
                 chunkCounter[(int) lookupResult]++;
                 adjacentDuplicates += entry.length;
                 GlobalMetadataManagerPtr->neighborAddRecord(writeTask.sha1Fp, fpTableEntry);
                 if (fpTableEntry.deltaTag) {
+                    writeTask.length = fpTableEntry.length;
                     writeTask.deltaTag = 1;
                     writeTask.baseFP = fpTableEntry.baseFP;
                     writeTask.oriLength = fpTableEntry.oriLength; //updated
-                    GlobalMetadataManagerPtr->neighborAddRecord(fpTableEntry.baseFP,
-                                                                {0, fpTableEntry.categoryOrder});
+                    FPTableEntry tFTE = {
+                            0,
+                            fpTableEntry.categoryOrder
+                    };
+                    GlobalMetadataManagerPtr->neighborAddRecord(fpTableEntry.baseFP, tFTE);
                 }
             }
 
