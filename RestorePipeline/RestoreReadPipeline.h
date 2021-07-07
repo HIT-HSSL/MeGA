@@ -14,6 +14,11 @@
 
 extern std::string ClassFileAppendPath;
 
+struct ReadPos {
+    uint64_t offset;
+    uint64_t length;
+};
+
 class RestoreReadPipeline {
 public:
     RestoreReadPipeline() : taskAmount(0), runningFlag(true), mutexLock(),
@@ -57,16 +62,16 @@ private:
             gettimeofday(&t0, NULL);
 
             uint64_t baseClass = 0;
-            std::vector<uint64_t> categoryList, volumeList;
+            std::list<uint64_t> categoryList, volumeList;
             if(restoreTask->fallBehind == 0 || (restoreTask->maxVersion - restoreTask->fallBehind) >= restoreTask->targetVersion){
-                for (uint64_t i = restoreTask->maxVersion - 1; i >= restoreTask->targetVersion; i--) {
+                for (uint64_t i = restoreTask->targetVersion; i < restoreTask->maxVersion; i++) {
                     volumeList.push_back(i);
                     printf("version # %lu is required\n", i);
                 }
                 uint64_t baseCategory = (restoreTask->maxVersion - 1) * restoreTask->maxVersion / 2 + 1;
                 baseClass = baseCategory;
                 for (uint64_t i = baseCategory; i < baseCategory + restoreTask->targetVersion; i++) {
-                    categoryList.push_back(i);
+                    categoryList.push_front(i);
                     printf("category # %lu is required\n", i);
                 }
                 printf("append category # %lu is optional\n", baseCategory);
@@ -88,21 +93,22 @@ private:
                 printf("append category # %lu is optional\n", baseClass);
                 // read unique chunks of following versions.
                 printf("The new categories of following versions..\n");
-                for (uint64_t i = restoreTask->maxVersion - restoreTask->fallBehind + 1; i<= restoreTask->maxVersion; i++){
+                for (uint64_t i = restoreTask->maxVersion - restoreTask->fallBehind + 1;
+                     i <= restoreTask->maxVersion; i++) {
                     categoryList.push_back(i * (i + 1) / 2);
-                    printf("category # %lu is required\n", i*(i+1)/2);
-                }
-            }
-
-            for (auto &item : categoryList) {
-                readFromCategoryFile(item);
-                if(item == baseClass){
-                    readFromAppendCategoryFile(baseClass);
+                    printf("category # %lu is required\n", i * (i + 1) / 2);
                 }
             }
 
             for (auto &item : volumeList) {
                 readFromVolumeFile(item, restoreTask->targetVersion);
+            }
+
+            for (auto &item : categoryList) {
+                if (item == baseClass) {
+                    readFromAppendCategoryFile(baseClass);
+                }
+                readFromCategoryFile(item);
             }
 
 
@@ -119,93 +125,59 @@ private:
     int readFromVolumeFile(uint64_t versionId, uint64_t restoreVersion) {
         sprintf(filePath, VersionFilePath.data(), versionId);
         FileOperator versionReader(filePath, FileOpenType::Read);
-        FILE* versionFileFD = versionReader.getFP();
-
-        VolumeFileHeader* volumeFileHeader;
 
         uint64_t leftLength = 0;
-        {
-            uint8_t *readBuffer = (uint8_t *) malloc(FLAGS_RestoreReadBufferLength);
-            uint64_t bytesToRead = FLAGS_RestoreReadBufferLength;
-            uint64_t bytesFinallyRead = fread(readBuffer, 1, bytesToRead, versionFileFD);
-            volumeFileHeader = (VolumeFileHeader*)readBuffer;
-            uint64_t* offset = (uint64_t*)(readBuffer + sizeof(VolumeFileHeader));
-            for(int i=0; i<restoreVersion; i++){
-                leftLength += offset[i];
-            }
-            uint64_t totalHeaderLength = sizeof(VolumeFileHeader) + volumeFileHeader->offsetCount * sizeof(uint64_t);
-
-            if(leftLength < bytesFinallyRead - totalHeaderLength){
-                RestoreParseTask* restoreParseTask = new RestoreParseTask(readBuffer, leftLength);
-                restoreParseTask->index = versionId;
-                restoreParseTask->beginPos = totalHeaderLength;
-                GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
-                leftLength = 0;
-            }else{
-                RestoreParseTask* restoreParseTask = new RestoreParseTask(readBuffer, bytesFinallyRead - totalHeaderLength);
-                restoreParseTask->index = versionId;
-                restoreParseTask->beginPos = totalHeaderLength;
-                GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
-                leftLength -= bytesFinallyRead - totalHeaderLength;
-            }
+        uint8_t *readBuffer = (uint8_t *) malloc(FLAGS_RestoreReadBufferLength);
+        uint64_t bytesForHeaderLength = versionReader.read(readBuffer, sizeof(VolumeFileHeader));
+        uint64_t headerItemCount = ((VolumeFileHeader *) readBuffer)->offsetCount;
+        uint64_t totalHeaderLength = sizeof(VolumeFileHeader) + headerItemCount * sizeof(uint64_t);
+        uint64_t bytesForHeader = versionReader.read(readBuffer, headerItemCount * sizeof(uint64_t));
+        uint64_t *offset = (uint64_t *) (readBuffer);
+        std::list<ReadPos> categoryList;
+        leftLength += totalHeaderLength;
+        for (int i = 0; i < restoreVersion; i++) {
+            categoryList.push_front({leftLength, offset[i]});
+            leftLength += offset[i];
         }
 
-        while (leftLength > 0) {
-            uint8_t *readBuffer = (uint8_t *) malloc(FLAGS_RestoreReadBufferLength);
-            uint64_t bytesToRead =
-                    leftLength > FLAGS_RestoreReadBufferLength ? FLAGS_RestoreReadBufferLength : leftLength;
-            uint64_t bytesFinallyRead = fread(readBuffer, 1, bytesToRead, versionFileFD);
-            leftLength -= bytesFinallyRead;
-
-            RestoreParseTask* restoreParseTask = new RestoreParseTask(readBuffer, bytesFinallyRead);
+        for (auto iter = categoryList.begin(); iter != categoryList.end(); iter++) {
+            uint8_t *ptr = (uint8_t *) malloc(iter->length);
+            versionReader.pread(ptr, iter->offset, iter->length);
+            RestoreParseTask *restoreParseTask = new RestoreParseTask(ptr, iter->length);
             restoreParseTask->index = versionId;
             GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
         }
+
+        free(readBuffer);
     }
 
 
     int readFromCategoryFile(uint64_t classId) {
         sprintf(filePath, ClassFilePath.data(), classId);
         FileOperator classReader(filePath, FileOpenType::Read);
-        int fd = classReader.getFd();
 
         uint64_t leftLength = FileOperator::size(filePath);
 
-        while (leftLength > 0) {
-            uint8_t *readBuffer = (uint8_t *) malloc(FLAGS_RestoreReadBufferLength);
-            uint64_t bytesToRead =
-                    leftLength > FLAGS_RestoreReadBufferLength ? FLAGS_RestoreReadBufferLength : leftLength;
-            uint64_t bytesFinallyRead = read(fd, readBuffer, bytesToRead);
-
-            leftLength -= bytesFinallyRead;
-
-            RestoreParseTask *restoreParseTask = new RestoreParseTask(readBuffer, bytesFinallyRead);
-            restoreParseTask->index = classId;
-            GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
-        }
+        uint8_t *readBuffer = (uint8_t *) malloc(leftLength);
+        classReader.read(readBuffer, leftLength);
+        RestoreParseTask *restoreParseTask = new RestoreParseTask(readBuffer, leftLength);
+        restoreParseTask->index = classId;
+        GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
     }
 
     int readFromAppendCategoryFile(uint64_t classId) {
         printf("Trying to load append file.\n");
         sprintf(filePath, ClassFileAppendPath.data(), classId);
         FileOperator classReader(filePath, FileOpenType::Read);
-        if(classReader.ok()){
+        if(classReader.ok()) {
             int fd = classReader.getFd();
 
             uint64_t leftLength = FileOperator::size(filePath);
-
-            while (leftLength > 0) {
-                uint8_t *readBuffer = (uint8_t *) malloc(FLAGS_RestoreReadBufferLength);
-                uint64_t bytesToRead =
-                        leftLength > FLAGS_RestoreReadBufferLength ? FLAGS_RestoreReadBufferLength : leftLength;
-                uint64_t bytesFinallyRead = read(fd, readBuffer, bytesToRead);
-
-                leftLength -= bytesFinallyRead;
-
-                RestoreParseTask *restoreParseTask = new RestoreParseTask(readBuffer, bytesFinallyRead);
-                restoreParseTask->index = classId;
-                GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
-            }
+            uint8_t *readBuffer = (uint8_t *) malloc(leftLength);
+            classReader.read(readBuffer, leftLength);
+            RestoreParseTask *restoreParseTask = new RestoreParseTask(readBuffer, leftLength);
+            restoreParseTask->index = classId;
+            GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
         }else{
             printf("Append file not exists, ignore it.\n");
         }

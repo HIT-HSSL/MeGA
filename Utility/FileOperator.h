@@ -63,15 +63,19 @@ public:
     }
 
     int ok(){
-        if(status == -1){
+        if (status == -1) {
             return 0;
-        }else{
+        } else {
             return 1;
         }
     }
 
     size_t read(uint8_t *buffer, uint64_t length) {
         return fread(buffer, 1, length, file);
+    }
+
+    size_t pread(uint8_t *buffer, uint64_t offset, uint64_t length) {
+        return pread64(file->_fileno, buffer, length, offset);
     }
 
     size_t write(uint8_t *buffer, uint64_t length) {

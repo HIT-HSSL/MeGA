@@ -47,6 +47,7 @@ struct FPTableEntry {
     union {
         uint64_t oriLength;
     };
+    uint64_t length;
     union {
         SHA1FP baseFP;
     };
@@ -310,7 +311,7 @@ public:
         auto pp = laterTable.fpTable.find(sha1Fp);
         assert(pp == laterTable.fpTable.end());
 
-        laterTable.fpTable.insert({sha1Fp, {0, categoryOrder, oriLength}});
+        laterTable.fpTable.insert({sha1Fp, {0, categoryOrder, oriLength, oriLength}});
 
         return 0;
     }
@@ -322,7 +323,7 @@ public:
         auto pp = laterTable.fpTable.find(sha1Fp);
         assert(pp == laterTable.fpTable.end());
 
-        laterTable.fpTable.insert({sha1Fp, {1, categoryOrder, oriLength, baseFP}});
+        laterTable.fpTable.insert({sha1Fp, {1, categoryOrder, oriLength, oriLength - diffLength, baseFP}});
         laterTable.totalSize -= diffLength;
 
         return 0;

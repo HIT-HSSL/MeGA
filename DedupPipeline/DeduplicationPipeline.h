@@ -237,24 +237,24 @@ private:
                     usize_t deltaSize;
                     gettimeofday(&dt1, NULL);
 
-//                        r = xd3_encode_memory(dedupTask.buffer + dedupTask.pos, dedupTask.length,
-//                                              tempBlockEntry.block, tempBlockEntry.length, tempBuffer, &deltaSize,
-//                                              dedupTask.length, XD3_COMPLEVEL_1);
-                    if (tempBlockEntry.length >= entry.length) {
-                        r = xd3_encode_memory(entry.buffer + entry.pos, entry.length,
-                                              tempBlockEntry.block, entry.length, tempBuffer, &deltaSize,
-                                              entry.length, XD3_COMPLEVEL_1);
-                        cutLength += tempBlockEntry.length - entry.length;
-                        cutTimes++;
-                    } else {
-                        uint8_t *baseBuffer = (uint8_t *) malloc(entry.length);
-                        memset(baseBuffer, 0, entry.length);
-                        memcpy(baseBuffer, tempBlockEntry.block, tempBlockEntry.length);
-                        r = xd3_encode_memory(entry.buffer + entry.pos, entry.length, baseBuffer,
-                                              entry.length, tempBuffer, &deltaSize, entry.length,
-                                              XD3_COMPLEVEL_1);
-                        free(baseBuffer);
-                    }
+                    r = xd3_encode_memory(entry.buffer + entry.pos, entry.length,
+                                          tempBlockEntry.block, tempBlockEntry.length, tempBuffer, &deltaSize,
+                                          entry.length, XD3_COMPLEVEL_1);
+//                    if (tempBlockEntry.length >= entry.length) {
+//                        r = xd3_encode_memory(entry.buffer + entry.pos, entry.length,
+//                                              tempBlockEntry.block, entry.length, tempBuffer, &deltaSize,
+//                                              entry.length, XD3_COMPLEVEL_1);
+//                        cutLength += tempBlockEntry.length - entry.length;
+//                        cutTimes++;
+//                    } else {
+//                        uint8_t *baseBuffer = (uint8_t *) malloc(entry.length);
+//                        memset(baseBuffer, 0, entry.length);
+//                        memcpy(baseBuffer, tempBlockEntry.block, tempBlockEntry.length);
+//                        r = xd3_encode_memory(entry.buffer + entry.pos, entry.length, baseBuffer,
+//                                              entry.length, tempBuffer, &deltaSize, entry.length,
+//                                              XD3_COMPLEVEL_1);
+//                        free(baseBuffer);
+//                    }
                     gettimeofday(&dt2, NULL);
                     deltaTime += (dt2.tv_sec - dt1.tv_sec) * 1000000 + dt2.tv_usec - dt1.tv_usec;
 
@@ -270,8 +270,13 @@ private:
                                                                  entry.length - deltaSize,
                                                                  entry.length);
                         // extend base lifecycle
-                        GlobalMetadataManagerPtr->extendBase(entry.basePos.sha1Fp,
-                                                             {0, entry.basePos.CategoryOrder, entry.basePos.length});
+                        FPTableEntry tFTE = {
+                                0,
+                                entry.basePos.CategoryOrder,
+                                entry.basePos.length,
+                                entry.basePos.length
+                        };
+                        GlobalMetadataManagerPtr->extendBase(entry.basePos.sha1Fp, tFTE);
                         // update task
                         writeTask.type = (int) similarLookupResult;
                         writeTask.buffer = tempBuffer;
@@ -306,16 +311,21 @@ private:
                 writeTask.oriLength = fpTableEntry.oriLength; //updated
                 writeTask.baseFP = fpTableEntry.baseFP;
                 writeTask.deltaTag = 1;
+                writeTask.length = fpTableEntry.length;
             } else if (lookupResult == LookupResult::AdjacentDedup) {
                 chunkCounter[(int) lookupResult]++;
                 adjacentDuplicates += entry.length;
                 GlobalMetadataManagerPtr->neighborAddRecord(writeTask.sha1Fp, fpTableEntry);
                 if (fpTableEntry.deltaTag) {
+                    writeTask.length = fpTableEntry.length;
                     writeTask.deltaTag = 1;
                     writeTask.baseFP = fpTableEntry.baseFP;
                     writeTask.oriLength = fpTableEntry.oriLength; //updated
-                    GlobalMetadataManagerPtr->neighborAddRecord(fpTableEntry.baseFP,
-                                                                {0, fpTableEntry.categoryOrder});
+                    FPTableEntry tFTE = {
+                            0,
+                            fpTableEntry.categoryOrder
+                    };
+                    GlobalMetadataManagerPtr->neighborAddRecord(fpTableEntry.baseFP, tFTE);
                 }
             }
 

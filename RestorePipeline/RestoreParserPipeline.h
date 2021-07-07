@@ -18,6 +18,10 @@
 DEFINE_uint64(RestoreReadBufferLength,
               8388608, "RestoreReadBufferLength");
 
+struct BlockRestorePos {
+    uint64_t offset;
+};
+
 class RestoreParserPipeline {
 public:
     RestoreParserPipeline(uint64_t target, const std::string &path) : taskAmount(0), runningFlag(true), mutexLock(),
@@ -55,12 +59,12 @@ private:
         uint64_t pos = 0;
         for (int i=0; i<count; i++) {
             blockHeader = (BlockHeader *) (recipeBuffer + i * sizeof(BlockHeader));
-            if(blockHeader->type){
-                restoreMap[blockHeader->baseFP].push_back({0, pos, blockHeader->length, blockHeader->oriLength});
-                restoreMap[blockHeader->fp].push_back({1, pos, blockHeader->length, blockHeader->oriLength});
+            if(blockHeader->type) {
+                restoreMap[blockHeader->baseFP].push_back({0, 1, pos, blockHeader->length});
+                restoreMap[blockHeader->fp].push_back({1, 0, pos, 0});
                 pos += blockHeader->oriLength;
             }else{
-                restoreMap[blockHeader->fp].push_back({0, pos, blockHeader->length, 0});
+                restoreMap[blockHeader->fp].push_back({0, 0, pos, 0});
                 pos += blockHeader->length;
             }
         }
@@ -68,11 +72,6 @@ private:
         GlobalRestoreWritePipelinePtr->setSize(pos);
 
         RestoreParseTask *restoreParseTask;
-        uint64_t leftLength = 0;
-        uint64_t copyLength = 0;
-        uint8_t *chunkPtr;
-
-        uint8_t *temp = (uint8_t *) malloc(FLAGS_RestoreReadBufferLength);
 
         struct timeval t0, t1;
 
@@ -94,66 +93,53 @@ private:
             gettimeofday(&t0, NULL);
 
             if (unlikely(restoreParseTask->endFlag)) {
-                printf("Read amplification : %f\n", (float)readLength / pos);
+                printf("Read amplification : %f\n", (float) readLength / pos);
                 delete restoreParseTask;
                 RestoreWriteTask *restoreWriteTask = new RestoreWriteTask(true);
                 GlobalRestoreWritePipelinePtr->addTask(restoreWriteTask);
                 gettimeofday(&t1, NULL);
-                duration += (t1.tv_sec-t0.tv_sec)*1000000 + t1.tv_usec - t0.tv_usec;
+                duration += (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
                 break;
             }
 
-            readLength += restoreParseTask->length - restoreParseTask->beginPos;
-
-            uint64_t taskRemain = 0;
-            if (leftLength + restoreParseTask->length > FLAGS_RestoreReadBufferLength) {
-                copyLength = FLAGS_RestoreReadBufferLength - leftLength;
-                taskRemain = restoreParseTask->length - copyLength;
-            } else {
-                copyLength = restoreParseTask->length;
-                taskRemain = 0;
-            }
-            uint64_t parseLeft = copyLength + leftLength;
-            memcpy(temp + leftLength, restoreParseTask->buffer + restoreParseTask->beginPos, copyLength);
-
+            std::list<BlockRestorePos> orderList;
+            uint64_t leftLength = restoreParseTask->length;
             uint64_t readoffset = 0;
+            uint8_t *buffer = restoreParseTask->buffer;
 
-            while (1) {
-                blockHeader = (BlockHeader *) (temp + readoffset);
-                if (parseLeft < sizeof(BlockHeader) || parseLeft < sizeof(BlockHeader) + blockHeader->length) {
-                    memcpy(temp, temp + readoffset, parseLeft);
-                    memcpy(temp + parseLeft, restoreParseTask->buffer + copyLength + restoreParseTask->beginPos, taskRemain);
-                    readoffset = 0;
-                    parseLeft += taskRemain;
+            readLength += restoreParseTask->length;
 
-                    taskRemain = 0;
-                    copyLength += taskRemain;
-                    blockHeader = (BlockHeader *) (temp + readoffset);
-
-                    if (parseLeft < sizeof(BlockHeader) || parseLeft < sizeof(BlockHeader) + blockHeader->length) {
-                        leftLength = parseLeft;
-                        break;
-                    }
+            while (readoffset < leftLength) {
+                BlockHeader *pBH = (BlockHeader *) (buffer + readoffset);
+                assert(leftLength > sizeof(BlockHeader));
+                assert(leftLength >= sizeof(BlockHeader) + pBH->length);
+                if (pBH->type) {
+                    orderList.push_front({readoffset});
+                } else {
+                    orderList.push_back({readoffset});
                 }
-                chunkPtr = temp + readoffset + sizeof(BlockHeader);
-                auto iter = restoreMap.find(blockHeader->fp);
+                readoffset += sizeof(BlockHeader) + pBH->length;
+            }
+            assert(readoffset == leftLength);
+
+            for (const auto &entry: orderList) {
+                BlockHeader *pBH = (BlockHeader *) (buffer + entry.offset);
+                uint8_t *bufferPtr = (uint8_t *) (buffer + entry.offset + sizeof(BlockHeader));
+                auto iter = restoreMap.find(pBH->fp);
                 // if we allow arrangement to fall behind, below assert must be commented.
-                //assert(iter->second.size() > 0);
+                assert(iter->second.size() > 0);
                 if (iter != restoreMap.end()) {
                     for (auto item : iter->second) {
-                        totalLength += blockHeader->length;
+                        totalLength += pBH->length;
                         // item.length could be the length before delta (not the actual delta size), when delta chunk is migrated as adjacent.
-                        RestoreWriteTask *restoreWriteTask = new RestoreWriteTask(chunkPtr, item.pos,
-                                                                                  blockHeader->length, item.type,
-                                                                                  item.oriLength);
+                        RestoreWriteTask *restoreWriteTask = new RestoreWriteTask(bufferPtr, item.pos,
+                                                                                  pBH->length, item.type, item.base,
+                                                                                  item.deltaLength);
                         GlobalRestoreWritePipelinePtr->addTask(restoreWriteTask);
                     }
                 } else {
                     assert(1);
                 }
-
-                readoffset += sizeof(BlockHeader) + blockHeader->length;
-                parseLeft -= sizeof(BlockHeader) + blockHeader->length;
             }
 
             delete restoreParseTask;
