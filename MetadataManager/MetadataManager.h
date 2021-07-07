@@ -44,6 +44,7 @@ struct TupleEqualer {
 struct FPTableEntry {
     uint32_t deltaTag: 1; // 0: unique 1: delta
     uint32_t categoryOrder: 31;
+
     union {
         uint64_t oriLength;
     };

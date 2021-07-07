@@ -108,7 +108,7 @@ private:
         RestoreWriteTask *restoreWriteTask;
         int fd = fileOperator->getFd();
         FileFlusher fileFlusher(fileOperator);
-        uint8_t *baseBuffer = (uint8_t *) malloc(ChunkBufferSize);
+        uint8_t *deltaBuffer = (uint8_t *) malloc(ChunkBufferSize);
         uint8_t *oriBuffer = (uint8_t *) malloc(ChunkBufferSize);
         usize_t oriSize = 0;
         struct timeval t0, t1, dt1, dt2, rt1, rt2;
@@ -135,35 +135,55 @@ private:
                 fileOperator->fdatasync();
                 countdownLatch->countDown();
                 gettimeofday(&t1, NULL);
-                duration += (t1.tv_sec-t0.tv_sec)*1000000 + t1.tv_usec - t0.tv_usec;
+                duration += (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
                 break;
             }
             chunkCounter++;
 
-            if(restoreWriteTask->type){
-                deltaCounter++;
+            if (restoreWriteTask->base) {
                 gettimeofday(&rt1, NULL);
-                pread(fd, baseBuffer, restoreWriteTask->baseLength, restoreWriteTask->pos);
+                pread(fd, deltaBuffer, restoreWriteTask->deltaLength, restoreWriteTask->pos);
                 gettimeofday(&rt2, NULL);
                 readTime += (rt2.tv_sec - rt1.tv_sec) * 1000000 + rt2.tv_usec - rt1.tv_usec;;
-
                 gettimeofday(&dt1, NULL);
-                int r = xd3_decode_memory(restoreWriteTask->buffer, restoreWriteTask->length, baseBuffer,
-                                          restoreWriteTask->baseLength, oriBuffer, &oriSize, ChunkBufferSize,
-                                          XD3_COMPLEVEL_1);
+
+                int r = xd3_decode_memory(deltaBuffer, restoreWriteTask->deltaLength, restoreWriteTask->buffer,
+                                          restoreWriteTask->length,
+                                          oriBuffer, &oriSize, ChunkBufferSize, XD3_COMPLEVEL_1);
                 gettimeofday(&dt2, NULL);
                 decodingTime += (dt2.tv_sec - dt1.tv_sec) * 1000000 + dt2.tv_usec - dt1.tv_usec;
                 assert(r == 0);
-                assert(oriSize == restoreWriteTask->baseLength);
                 pwrite(fd, oriBuffer, oriSize, restoreWriteTask->pos);
-//                sprintf(buffer, "1, %lu, %lu, %lu\n", chunkCounter, restoreWriteTask->pos, restoreWriteTask->baseLength);
+//                sprintf(buffer, "1, %lu, %lu, %lu\n", chunkCounter, restoreWriteTask->pos, restoreWriteTask->deltaLength);
 //                ff.write((uint8_t*)buffer, strlen(buffer));
-            }else {
+            } else {
                 pwrite(fd, restoreWriteTask->buffer, restoreWriteTask->length, restoreWriteTask->pos);
 //                sprintf(buffer, "0, %lu, %lu, %lu\n", chunkCounter, restoreWriteTask->pos, restoreWriteTask->length);
 //                ff.write((uint8_t*)buffer, strlen(buffer));
             }
+/*
+            if(restoreWriteTask->type){
+                deltaCounter++;
+                gettimeofday(&rt1, NULL);
+                pread(fd, deltaBuffer, restoreWriteTask->deltaLength, restoreWriteTask->pos);
+                gettimeofday(&rt2, NULL);
+                readTime += (rt2.tv_sec - rt1.tv_sec) * 1000000 + rt2.tv_usec - rt1.tv_usec;;
 
+                gettimeofday(&dt1, NULL);
+                int r = xd3_decode_memory(restoreWriteTask->buffer, restoreWriteTask->length, deltaBuffer,
+                                          restoreWriteTask->deltaLength, oriBuffer, &oriSize, ChunkBufferSize,
+                                          XD3_COMPLEVEL_1);
+                gettimeofday(&dt2, NULL);
+                decodingTime += (dt2.tv_sec - dt1.tv_sec) * 1000000 + dt2.tv_usec - dt1.tv_usec;
+                assert(r == 0);
+                assert(oriSize == restoreWriteTask->deltaLength);
+                pwrite(fd, oriBuffer, oriSize, restoreWriteTask->pos);
+
+            }else {
+                pwrite(fd, restoreWriteTask->buffer, restoreWriteTask->length, restoreWriteTask->pos);
+
+            }
+*/
 
             syncCounter++;
             if(syncCounter > 1024){
@@ -175,7 +195,7 @@ private:
             gettimeofday(&t1, NULL);
             duration += (t1.tv_sec-t0.tv_sec)*1000000 + t1.tv_usec - t0.tv_usec;
         }
-        free(baseBuffer);
+        free(deltaBuffer);
         free(oriBuffer);
     }
 

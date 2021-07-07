@@ -237,24 +237,24 @@ private:
                     usize_t deltaSize;
                     gettimeofday(&dt1, NULL);
 
-//                        r = xd3_encode_memory(dedupTask.buffer + dedupTask.pos, dedupTask.length,
-//                                              tempBlockEntry.block, tempBlockEntry.length, tempBuffer, &deltaSize,
-//                                              dedupTask.length, XD3_COMPLEVEL_1);
-                    if (tempBlockEntry.length >= entry.length) {
-                        r = xd3_encode_memory(entry.buffer + entry.pos, entry.length,
-                                              tempBlockEntry.block, entry.length, tempBuffer, &deltaSize,
-                                              entry.length, XD3_COMPLEVEL_1);
-                        cutLength += tempBlockEntry.length - entry.length;
-                        cutTimes++;
-                    } else {
-                        uint8_t *baseBuffer = (uint8_t *) malloc(entry.length);
-                        memset(baseBuffer, 0, entry.length);
-                        memcpy(baseBuffer, tempBlockEntry.block, tempBlockEntry.length);
-                        r = xd3_encode_memory(entry.buffer + entry.pos, entry.length, baseBuffer,
-                                              entry.length, tempBuffer, &deltaSize, entry.length,
-                                              XD3_COMPLEVEL_1);
-                        free(baseBuffer);
-                    }
+                    r = xd3_encode_memory(entry.buffer + entry.pos, entry.length,
+                                          tempBlockEntry.block, tempBlockEntry.length, tempBuffer, &deltaSize,
+                                          entry.length, XD3_COMPLEVEL_1);
+//                    if (tempBlockEntry.length >= entry.length) {
+//                        r = xd3_encode_memory(entry.buffer + entry.pos, entry.length,
+//                                              tempBlockEntry.block, entry.length, tempBuffer, &deltaSize,
+//                                              entry.length, XD3_COMPLEVEL_1);
+//                        cutLength += tempBlockEntry.length - entry.length;
+//                        cutTimes++;
+//                    } else {
+//                        uint8_t *baseBuffer = (uint8_t *) malloc(entry.length);
+//                        memset(baseBuffer, 0, entry.length);
+//                        memcpy(baseBuffer, tempBlockEntry.block, tempBlockEntry.length);
+//                        r = xd3_encode_memory(entry.buffer + entry.pos, entry.length, baseBuffer,
+//                                              entry.length, tempBuffer, &deltaSize, entry.length,
+//                                              XD3_COMPLEVEL_1);
+//                        free(baseBuffer);
+//                    }
                     gettimeofday(&dt2, NULL);
                     deltaTime += (dt2.tv_sec - dt1.tv_sec) * 1000000 + dt2.tv_usec - dt1.tv_usec;
 
