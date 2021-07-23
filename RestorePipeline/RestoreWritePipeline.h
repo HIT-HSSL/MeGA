@@ -83,6 +83,7 @@ public:
     }
 
     ~RestoreWritePipeline() {
+        printf("write amplification: %f\n", (float) extraIO / normalIO);
         printf("restore write duration :%lu\n", duration);
         printf("read time:%lu, decoding time:%lu\n", readTime, decodingTime);
         printf("total chunks:%lu, delta chunks:%lu\n", chunkCounter, deltaCounter);
@@ -144,6 +145,7 @@ private:
                 gettimeofday(&rt1, NULL);
                 pread(fd, deltaBuffer, restoreWriteTask->deltaLength, restoreWriteTask->pos);
                 gettimeofday(&rt2, NULL);
+                extraIO += restoreWriteTask->deltaLength;
                 readTime += (rt2.tv_sec - rt1.tv_sec) * 1000000 + rt2.tv_usec - rt1.tv_usec;;
                 gettimeofday(&dt1, NULL);
 
@@ -154,10 +156,12 @@ private:
                 decodingTime += (dt2.tv_sec - dt1.tv_sec) * 1000000 + dt2.tv_usec - dt1.tv_usec;
                 assert(r == 0);
                 pwrite(fd, oriBuffer, oriSize, restoreWriteTask->pos);
+                normalIO += oriSize;
 //                sprintf(buffer, "1, %lu, %lu, %lu\n", chunkCounter, restoreWriteTask->pos, restoreWriteTask->deltaLength);
 //                ff.write((uint8_t*)buffer, strlen(buffer));
             } else {
                 pwrite(fd, restoreWriteTask->buffer, restoreWriteTask->length, restoreWriteTask->pos);
+                normalIO += restoreWriteTask->deltaLength;
 //                sprintf(buffer, "0, %lu, %lu, %lu\n", chunkCounter, restoreWriteTask->pos, restoreWriteTask->length);
 //                ff.write((uint8_t*)buffer, strlen(buffer));
             }
@@ -207,7 +211,7 @@ private:
     std::list<RestoreWriteTask *> taskList;
     MutexLock mutexLock;
     Condition condition;
-    FileOperator* fileOperator = nullptr;
+    FileOperator *fileOperator = nullptr;
 
     uint64_t totalSize = 0;
     uint64_t deltaCounter = 0, chunkCounter = 0;
@@ -217,6 +221,9 @@ private:
     uint64_t readTime = 0;
 
     uint64_t syncCounter = 0;
+
+    uint64_t extraIO = 0;
+    uint64_t normalIO = 0;
 };
 
 static RestoreWritePipeline *GlobalRestoreWritePipelinePtr;

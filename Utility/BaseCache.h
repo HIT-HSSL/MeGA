@@ -16,8 +16,10 @@
 
 extern std::string ClassFileAppendPath;
 
+DEFINE_uint64(CacheSize,
+              128, "CappingThreshold");
 
-uint64_t TotalSizeThreshold = 400 * 1024 * 1024;
+uint64_t TotalSizeThreshold = FLAGS_CacheSize * 4 * 1024 * 1024;
 
 int UpdateScore = 2;
 
