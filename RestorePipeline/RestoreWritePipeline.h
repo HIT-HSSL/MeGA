@@ -83,7 +83,7 @@ public:
     }
 
     ~RestoreWritePipeline() {
-        printf("write amplification: %f\n", (float) extraIO / normalIO);
+        printf("write amplification: %f (%lu / %lu)\n", (float) extraIO / normalIO, extraIO, normalIO);
         printf("restore write duration :%lu\n", duration);
         printf("read time:%lu, decoding time:%lu\n", readTime, decodingTime);
         printf("total chunks:%lu, delta chunks:%lu\n", chunkCounter, deltaCounter);
@@ -105,7 +105,7 @@ public:
 
 private:
     void restoreWriteCallback() {
-        pthread_setname_np(pthread_self(), "Restore Writing Thread");
+        pthread_setname_np(pthread_self(), "RWriting");
         RestoreWriteTask *restoreWriteTask;
         int fd = fileOperator->getFd();
         FileFlusher fileFlusher(fileOperator);
@@ -161,7 +161,7 @@ private:
 //                ff.write((uint8_t*)buffer, strlen(buffer));
             } else {
                 pwrite(fd, restoreWriteTask->buffer, restoreWriteTask->length, restoreWriteTask->pos);
-                normalIO += restoreWriteTask->deltaLength;
+                normalIO += restoreWriteTask->length;
 //                sprintf(buffer, "0, %lu, %lu, %lu\n", chunkCounter, restoreWriteTask->pos, restoreWriteTask->length);
 //                ff.write((uint8_t*)buffer, strlen(buffer));
             }

@@ -77,8 +77,7 @@ private:
 
                 sprintf(pathBuffer, ClassFilePath.data(), classIter + 1, currentVersion + 1, activeCID);
                 activeFileOperator = new FileOperator(pathBuffer, FileOpenType::Write);
-            }
-            else if(arrangementWriteTask->classEndFlag) {
+            } else if (arrangementWriteTask->classEndFlag) {
                 classIter++;
                 archivedLength = 0;
                 activeLength = 0;
@@ -101,8 +100,7 @@ private:
                     activeFileOperator = new FileOperator(pathBuffer, FileOpenType::Write);
                 }
                 continue;
-            }
-            else if(arrangementWriteTask->finalEndFlag) {
+            } else if (arrangementWriteTask->finalEndFlag) {
                 printf("ActiveChunks:%lu, ArchivedChunks:%lu\n", activeChunks, archivedChunks);
 //                activeFileOperator->fsync();
 //                delete activeFileOperator;
@@ -119,8 +117,7 @@ private:
                 delete arrangementWriteTask;
                 printf("ArrangementWritePipeline finish\n");
                 continue;
-            }
-            else if(arrangementWriteTask->isArchived) {
+            } else if (arrangementWriteTask->isArchived) {
                 archivedFileOperator->write(arrangementWriteTask->writeBuffer, arrangementWriteTask->length);
                 archivedLength += arrangementWriteTask->length;
                 if (archivedLength >= ContainerSize) {
@@ -133,7 +130,7 @@ private:
                     archivedFileOperator = new FileOperator(pathBuffer, FileOpenType::Write);
                 }
                 archivedChunks++;
-            }else {
+            } else {
                 BlockHeader *bhPtr = (BlockHeader *) arrangementWriteTask->writeBuffer;
                 activeFileOperator->write(arrangementWriteTask->writeBuffer, arrangementWriteTask->length);
                 if (!bhPtr->type) {

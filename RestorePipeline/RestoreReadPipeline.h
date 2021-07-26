@@ -42,7 +42,7 @@ public:
 
 private:
     void restoreReadCallback() {
-        pthread_setname_np(pthread_self(), "Restore Reading Thread");
+        pthread_setname_np(pthread_self(), "RReading");
         RestoreTask *restoreTask;
 
         struct timeval t0, t1;
@@ -66,15 +66,15 @@ private:
             if(restoreTask->fallBehind == 0 || (restoreTask->maxVersion - restoreTask->fallBehind) >= restoreTask->targetVersion){
                 for (uint64_t i = restoreTask->targetVersion; i < restoreTask->maxVersion; i++) {
                     volumeList.push_back(i);
-                    printf("version # %lu is required\n", i);
+                    printf("Column # %lu is required\n", i);
                 }
-                uint64_t baseCategory = (restoreTask->maxVersion - 1) * restoreTask->maxVersion / 2 + 1;
+                uint64_t baseCategory = 1;
                 baseClass = baseCategory;
                 for (uint64_t i = baseCategory; i < baseCategory + restoreTask->targetVersion; i++) {
                     categoryList.push_front(i);
-                    printf("category # %lu is required\n", i);
+                    printf("LC-group # %lu is required\n", i);
                 }
-                printf("append category # %lu is optional\n", baseCategory);
+                printf("append LC-group # %lu is optional\n", baseCategory);
             }else{
                 assert(0); // todo: do not consider fall behind currently
                 //processing when arrangement falls behind.
@@ -106,13 +106,13 @@ private:
 
             for (auto &item : categoryList) {
                 if (item == baseClass) {
-                    readFromAppendCategoryFile(baseClass);
+                    readFromAppendCategoryFile(baseClass, restoreTask->maxVersion);
                 }
-                readFromCategoryFile(item);
+                readFromCategoryFile(item, restoreTask->maxVersion);
             }
 
 
-
+            printf("read done\n");
             RestoreParseTask *restoreParseTask = new RestoreParseTask(true);
             GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
 
@@ -123,63 +123,77 @@ private:
     }
 
     int readFromVolumeFile(uint64_t versionId, uint64_t restoreVersion) {
-        sprintf(filePath, VersionFilePath.data(), versionId);
-        FileOperator versionReader(filePath, FileOpenType::Read);
+        for (int i = restoreVersion; i >= 1; i--) {
+            uint64_t cid = 0;
+            while (1) {
+                sprintf(filePath, VersionFilePath.data(), i, versionId, cid);
+                FileOperator archivedReader(filePath, FileOpenType::Read);
+                if (!archivedReader.ok()) {
+                    break;
+                }
+                cid++;
+            }
+            uint64_t cidMax = cid - 1;
 
-        uint64_t leftLength = 0;
-        uint8_t *readBuffer = (uint8_t *) malloc(FLAGS_RestoreReadBufferLength);
-        uint64_t bytesForHeaderLength = versionReader.read(readBuffer, sizeof(VolumeFileHeader));
-        uint64_t headerItemCount = ((VolumeFileHeader *) readBuffer)->offsetCount;
-        uint64_t totalHeaderLength = sizeof(VolumeFileHeader) + headerItemCount * sizeof(uint64_t);
-        uint64_t bytesForHeader = versionReader.read(readBuffer, headerItemCount * sizeof(uint64_t));
-        uint64_t *offset = (uint64_t *) (readBuffer);
-        std::list<ReadPos> categoryList;
-        leftLength += totalHeaderLength;
-        for (int i = 0; i < restoreVersion; i++) {
-            categoryList.push_front({leftLength, offset[i]});
-            leftLength += offset[i];
+            for (int j = cidMax; j >= 0; j--) {
+                sprintf(filePath, VersionFilePath.data(), i, versionId, j);
+                FileOperator archivedReader(filePath, FileOpenType::Read);
+                uint8_t *readBuffer = (uint8_t *) malloc(FLAGS_RestoreReadBufferLength);
+                uint64_t bytesForHeaderLength = archivedReader.read(readBuffer, FLAGS_RestoreReadBufferLength);
+                RestoreParseTask *restoreParseTask = new RestoreParseTask(readBuffer, bytesForHeaderLength);
+                restoreParseTask->index = versionId;
+                GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
+            }
         }
 
-        for (auto iter = categoryList.begin(); iter != categoryList.end(); iter++) {
-            uint8_t *ptr = (uint8_t *) malloc(iter->length);
-            versionReader.pread(ptr, iter->offset, iter->length);
-            RestoreParseTask *restoreParseTask = new RestoreParseTask(ptr, iter->length);
-            restoreParseTask->index = versionId;
+    }
+
+
+    int readFromCategoryFile(uint64_t classId, uint64_t column) {
+        uint64_t cid = 0;
+        while (1) {
+            sprintf(filePath, ClassFilePath.data(), classId, column, cid);
+            FileOperator activeReader(filePath, FileOpenType::Read);
+            if (!activeReader.ok()) {
+                break;
+            }
+            cid++;
+        }
+        uint64_t cidMax = cid - 1;
+
+        for (int j = cidMax; j >= 0; j--) {
+            sprintf(filePath, ClassFilePath.data(), classId, column, j);
+            FileOperator activeReader(filePath, FileOpenType::Read);
+            uint8_t *readBuffer = (uint8_t *) malloc(FLAGS_RestoreReadBufferLength);
+            uint64_t bytesForHeaderLength = activeReader.read(readBuffer, FLAGS_RestoreReadBufferLength);
+            RestoreParseTask *restoreParseTask = new RestoreParseTask(readBuffer, bytesForHeaderLength);
+            restoreParseTask->index = column;
             GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
         }
-
-        free(readBuffer);
     }
 
-
-    int readFromCategoryFile(uint64_t classId) {
-        sprintf(filePath, ClassFilePath.data(), classId);
-        FileOperator classReader(filePath, FileOpenType::Read);
-
-        uint64_t leftLength = FileOperator::size(filePath);
-
-        uint8_t *readBuffer = (uint8_t *) malloc(leftLength);
-        classReader.read(readBuffer, leftLength);
-        RestoreParseTask *restoreParseTask = new RestoreParseTask(readBuffer, leftLength);
-        restoreParseTask->index = classId;
-        GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
-    }
-
-    int readFromAppendCategoryFile(uint64_t classId) {
+    int readFromAppendCategoryFile(uint64_t classId, uint64_t column) {
         printf("Trying to load append file.\n");
-        sprintf(filePath, ClassFileAppendPath.data(), classId);
-        FileOperator classReader(filePath, FileOpenType::Read);
-        if(classReader.ok()) {
-            int fd = classReader.getFd();
 
-            uint64_t leftLength = FileOperator::size(filePath);
-            uint8_t *readBuffer = (uint8_t *) malloc(leftLength);
-            classReader.read(readBuffer, leftLength);
-            RestoreParseTask *restoreParseTask = new RestoreParseTask(readBuffer, leftLength);
-            restoreParseTask->index = classId;
+        uint64_t cid = 0;
+        while (1) {
+            sprintf(filePath, ClassFileAppendPath.data(), classId, column, cid);
+            FileOperator activeReader(filePath, FileOpenType::Read);
+            if (!activeReader.ok()) {
+                break;
+            }
+            cid++;
+        }
+        uint64_t cidMax = cid - 1;
+
+        for (int j = cidMax; j >= 0; j--) {
+            sprintf(filePath, ClassFileAppendPath.data(), classId, column, j);
+            FileOperator activeReader(filePath, FileOpenType::Read);
+            uint8_t *readBuffer = (uint8_t *) malloc(FLAGS_RestoreReadBufferLength);
+            uint64_t bytesForHeaderLength = activeReader.read(readBuffer, FLAGS_RestoreReadBufferLength);
+            RestoreParseTask *restoreParseTask = new RestoreParseTask(readBuffer, bytesForHeaderLength);
+            restoreParseTask->index = column;
             GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
-        }else{
-            printf("Append file not exists, ignore it.\n");
         }
     }
 

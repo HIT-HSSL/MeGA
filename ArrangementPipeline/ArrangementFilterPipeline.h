@@ -30,6 +30,7 @@ public:
     }
 
     ~ArrangementFilterPipeline() {
+        printf("total Read I/O:%lu, total Write I/O:%lu, Skip I/O:%lu\n", totalReadIO, totalWriteIO, skipWriteIO);
         runningFlag = false;
         condition.notifyAll();
         worker->join();
@@ -73,7 +74,7 @@ private:
             }
 
             if(unlikely(arrangementFilterTask->finalEndFlag)){
-                ArrangementWriteTask* arrangementWriteTask = new ArrangementWriteTask(true);
+                ArrangementWriteTask *arrangementWriteTask = new ArrangementWriteTask(true);
                 arrangementWriteTask->countdownLatch = arrangementFilterTask->countdownLatch;
                 GlobalArrangementWritePipelinePtr->addTask(arrangementWriteTask);
                 delete arrangementFilterTask;
@@ -83,6 +84,8 @@ private:
 
             uint64_t readoffset = 0;
             uint8_t *bufferPtr = arrangementFilterTask->readBuffer;
+
+            uint64_t tempWriteIO = 0;
 
             while (readoffset < arrangementFilterTask->length) {
                 blockHeader = (BlockHeader *) (bufferPtr + readoffset);
@@ -96,7 +99,7 @@ private:
                             arrangementFilterTask->arrangementVersion,
                             true);
                     GlobalArrangementWritePipelinePtr->addTask(arrangementWriteTask);
-                }else{
+                } else {
                     ArrangementWriteTask *arrangementWriteTask = new ArrangementWriteTask(
                             (uint8_t *) blockHeader,
                             blockHeader->length + sizeof(BlockHeader),
@@ -105,7 +108,14 @@ private:
                             false);
                     GlobalArrangementWritePipelinePtr->addTask(arrangementWriteTask);
                 }
+                tempWriteIO += blockHeader->length;
+                totalReadIO += blockHeader->length;
                 readoffset += sizeof(BlockHeader) + blockHeader->length;
+            }
+            if (tempWriteIO != arrangementFilterTask->length) {
+                totalWriteIO += tempWriteIO;
+            } else {
+                skipWriteIO += tempWriteIO;
             }
             assert(readoffset == arrangementFilterTask->length);
 
@@ -116,9 +126,13 @@ private:
     bool runningFlag;
     std::thread *worker;
     uint64_t taskAmount;
-    std::list<ArrangementFilterTask*> taskList;
+    std::list<ArrangementFilterTask *> taskList;
     MutexLock mutexLock;
     Condition condition;
+
+    uint64_t totalReadIO = 0;
+    uint64_t totalWriteIO = 0;
+    uint64_t skipWriteIO = 0;
 };
 
 static ArrangementFilterPipeline* GlobalArrangementFilterPipelinePtr;
