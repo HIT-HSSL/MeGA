@@ -111,25 +111,6 @@ private:
         uint64_t cid = 0;
         while (1) {
             char pathbuffer[512];
-            sprintf(pathbuffer, ClassFileAppendPath.data(), classId, versionId, cid);
-            FileOperator classFile((char *) pathbuffer, FileOpenType::TRY);
-            if (!classFile.ok()) {
-                break;
-            }
-            uint8_t *buffer = (uint8_t *) malloc(FLAGS_ArrangementReadBufferLength);
-            uint64_t readSize = classFile.read(buffer, FLAGS_ArrangementReadBufferLength);
-            readAmount += readSize;
-            ArrangementFilterTask *arrangementFilterTask = new ArrangementFilterTask(buffer, readSize, classId,
-                                                                                     versionId);
-            GlobalArrangementFilterPipelinePtr->addTask(arrangementFilterTask);
-            remove(pathbuffer);
-            cid++;
-        }
-        printf("Read %lu containers from LC(%lu,%lu)_append\n", cid, classId, versionId);
-
-        cid = 0;
-        while (1) {
-            char pathbuffer[512];
             sprintf(pathbuffer, ClassFilePath.data(), classId, versionId, cid);
             FileOperator classFile((char *) pathbuffer, FileOpenType::TRY);
             if (!classFile.ok()) {
@@ -145,6 +126,25 @@ private:
             cid++;
         }
         printf("Read %lu containers from LC(%lu,%lu)\n", cid, classId, versionId);
+
+        cid = 0;
+        while (1) {
+            char pathbuffer[512];
+            sprintf(pathbuffer, ClassFileAppendPath.data(), classId, versionId, cid);
+            FileOperator classFile((char *) pathbuffer, FileOpenType::TRY);
+            if (!classFile.ok()) {
+                break;
+            }
+            uint8_t *buffer = (uint8_t *) malloc(FLAGS_ArrangementReadBufferLength);
+            uint64_t readSize = classFile.read(buffer, FLAGS_ArrangementReadBufferLength);
+            readAmount += readSize;
+            ArrangementFilterTask *arrangementFilterTask = new ArrangementFilterTask(buffer, readSize, classId,
+                                                                                     versionId);
+            GlobalArrangementFilterPipelinePtr->addTask(arrangementFilterTask);
+            remove(pathbuffer);
+            cid++;
+        }
+        printf("Read %lu containers from LC(%lu,%lu)_append\n", cid, classId, versionId);
         ArrangementFilterTask *arrangementFilterTask = new ArrangementFilterTask(true, classId);
         GlobalArrangementFilterPipelinePtr->addTask(arrangementFilterTask);
         return 0;

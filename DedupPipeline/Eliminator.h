@@ -63,7 +63,7 @@ private:
     int versionFileProcessor(uint64_t versionId) {
         // append first two archived categories in volumes.
 
-        for (int i = 3; i < versionId; i++) {
+        for (int i = 3; i <= versionId; i++) {
             uint64_t cid = 0;
             while (1) {
                 sprintf(oldPath, VersionFilePath.data(), i, versionId, cid);
@@ -159,7 +159,6 @@ private:
             cid++;
         }
 
-        cid = 0;
         uint64_t acid = 0;
         while (1) {
             sprintf(oldPath, VersionFilePath.data(), classId2, version, acid);
