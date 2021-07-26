@@ -21,6 +21,7 @@ enum class FileOpenType {
     Write,
     ReadWrite,
     Append,
+    TRY,
 };
 
 uint64_t fileCounter = 0;
@@ -38,15 +39,16 @@ public:
             case FileOpenType::Append :
                 file = fopen(path, "ab+");
                 break;
-            case FileOpenType::Read :
+            case FileOpenType::TRY:
+            case FileOpenType::Read:
             default:
                 file = fopen(path, "rb");
                 break;
         }
-        if (!file) {
+        if (!file && fileOpenType != FileOpenType::TRY) {
             printf("Can not open file %s : %s\n", path, strerror(errno));
             status = -1;
-        }else{
+        } else {
             fileCounter++;
         }
     }

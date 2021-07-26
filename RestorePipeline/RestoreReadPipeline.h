@@ -127,7 +127,7 @@ private:
             uint64_t cid = 0;
             while (1) {
                 sprintf(filePath, VersionFilePath.data(), i, versionId, cid);
-                FileOperator archivedReader(filePath, FileOpenType::Read);
+                FileOperator archivedReader(filePath, FileOpenType::TRY);
                 if (!archivedReader.ok()) {
                     break;
                 }
@@ -153,7 +153,7 @@ private:
         uint64_t cid = 0;
         while (1) {
             sprintf(filePath, ClassFilePath.data(), classId, column, cid);
-            FileOperator activeReader(filePath, FileOpenType::Read);
+            FileOperator activeReader(filePath, FileOpenType::TRY);
             if (!activeReader.ok()) {
                 break;
             }
@@ -178,7 +178,7 @@ private:
         uint64_t cid = 0;
         while (1) {
             sprintf(filePath, ClassFileAppendPath.data(), classId, column, cid);
-            FileOperator activeReader(filePath, FileOpenType::Read);
+            FileOperator activeReader(filePath, FileOpenType::TRY);
             if (!activeReader.ok()) {
                 break;
             }

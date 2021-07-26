@@ -86,11 +86,13 @@ private:
             uint8_t *bufferPtr = arrangementFilterTask->readBuffer;
 
             uint64_t tempWriteIO = 0;
+            bool actTag = false, arcTag = false;
 
             while (readoffset < arrangementFilterTask->length) {
                 blockHeader = (BlockHeader *) (bufferPtr + readoffset);
 
                 int r = GlobalMetadataManagerPtr->arrangementLookup(blockHeader->fp);
+
                 if (!r) {
                     ArrangementWriteTask *arrangementWriteTask = new ArrangementWriteTask(
                             (uint8_t *) blockHeader,
@@ -99,6 +101,7 @@ private:
                             arrangementFilterTask->arrangementVersion,
                             true);
                     GlobalArrangementWritePipelinePtr->addTask(arrangementWriteTask);
+                    arcTag = true;
                 } else {
                     ArrangementWriteTask *arrangementWriteTask = new ArrangementWriteTask(
                             (uint8_t *) blockHeader,
@@ -107,12 +110,13 @@ private:
                             arrangementFilterTask->arrangementVersion,
                             false);
                     GlobalArrangementWritePipelinePtr->addTask(arrangementWriteTask);
+                    actTag = true;
                 }
                 tempWriteIO += blockHeader->length;
                 totalReadIO += blockHeader->length;
                 readoffset += sizeof(BlockHeader) + blockHeader->length;
             }
-            if (tempWriteIO != arrangementFilterTask->length) {
+            if (actTag && arcTag) {
                 totalWriteIO += tempWriteIO;
             } else {
                 skipWriteIO += tempWriteIO;

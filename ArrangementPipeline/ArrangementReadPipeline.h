@@ -87,7 +87,7 @@ private:
         while (1) {
             char pathbuffer[512];
             sprintf(pathbuffer, ClassFilePath.data(), classId, versionId, cid);
-            FileOperator classFile((char *) pathbuffer, FileOpenType::Read);
+            FileOperator classFile((char *) pathbuffer, FileOpenType::TRY);
             if (!classFile.ok()) {
                 break;
             }
@@ -112,7 +112,7 @@ private:
         while (1) {
             char pathbuffer[512];
             sprintf(pathbuffer, ClassFileAppendPath.data(), classId, versionId, cid);
-            FileOperator classFile((char *) pathbuffer, FileOpenType::Read);
+            FileOperator classFile((char *) pathbuffer, FileOpenType::TRY);
             if (!classFile.ok()) {
                 break;
             }
@@ -131,7 +131,7 @@ private:
         while (1) {
             char pathbuffer[512];
             sprintf(pathbuffer, ClassFilePath.data(), classId, versionId, cid);
-            FileOperator classFile((char *) pathbuffer, FileOpenType::Read);
+            FileOperator classFile((char *) pathbuffer, FileOpenType::TRY);
             if (!classFile.ok()) {
                 break;
             }
