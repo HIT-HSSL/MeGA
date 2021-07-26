@@ -12,7 +12,7 @@ aux_source_directory(ArrangementPipeline ArrangementPipeline)
 aux_source_directory(Rollhash Rollhash)
 add_subdirectory(gflags-2.2.2)
 
-SET(XDELTA_PATH ${CMAKE_SOURCE_DIR}/lib/)
+#SET(XDELTA_PATH ${CMAKE_SOURCE_DIR}/lib/)
 
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 

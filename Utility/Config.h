@@ -22,18 +22,20 @@ extern std::string HomePath;
 extern std::string ClassFileAppendPath;
 extern uint64_t RetentionTime;
 
-class ConfigReader{
+uint64_t ContainerSize = 4194304;
+
+class ConfigReader {
 public:
-    ConfigReader(std::string p){
+    ConfigReader(std::string p) {
         auto data = toml::parse(p);
         std::string path = toml::find<std::string>(data, "path");
         LogicFilePath = path + "/logicFiles/Recipe%lu";
-        ClassFilePath = path + "/storageFiles/Category%lu";
-        VersionFilePath = path + "/storageFiles/Volume%lu";
+        ClassFilePath = path + "/storageFiles/Active_LC(%lu,%lu)Container%lu";
+        VersionFilePath = path + "/storageFiles/Archived_LC(%lu,%lu)Container%lu";
         ManifestPath = path + "/manifest";
         KVPath = path + "kvstore";
         HomePath = path;
-        ClassFileAppendPath = path + "/storageFiles/Category%lu_append";
+        ClassFileAppendPath = path + "/storageFiles/Active_LC(%lu,%lu)Append_Container%lu";
         int64_t rt = toml::find<int64_t>(data, "retention");
         RetentionTime = rt;
         printf("-----------------------Configure-----------------------\n");

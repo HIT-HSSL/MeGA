@@ -12,10 +12,7 @@
 #include "Likely.h"
 
 DEFINE_uint64(WriteBufferLength,
-              8388608, "WriteBufferLength");
-
-DEFINE_uint64(ChunkWriterManagerFlushThreshold,
-              8, "WriteBufferLength");
+              4194304, "WriteBufferLength");
 
 extern std::string ClassFilePath;
 extern std::string VersionFilePath;
@@ -23,7 +20,6 @@ extern std::string VersionFilePath;
 int WorkerExitMagicNumber = -1;
 
 struct WriteBuffer {
-    char *buffer;
     uint64_t totalLength;
     uint64_t available;
 };
@@ -31,24 +27,15 @@ struct WriteBuffer {
 
 class ChunkWriterManager {
 public:
-    ChunkWriterManager(uint64_t currentVersion):runningFlag(true), taskAmount(0), mutexLock(), condition(mutexLock) {
-        classId = (currentVersion + 1) * currentVersion / 2;
+    ChunkWriterManager(uint64_t cv) : runningFlag(true), taskAmount(0), mutexLock(), condition(mutexLock) {
+        currentVersion = cv;
 
-        sprintf(pathBuffer, ClassFilePath.data(), classId);
+        sprintf(pathBuffer, ClassFilePath.data(), currentVersion, currentVersion, containerCounter);
         writer = new FileOperator(pathBuffer, FileOpenType::Write);
-        syncCounter = 0;
-//        writeBuffer = {
-//                (char *) malloc(FLAGS_WriteBufferLength),
-//                FLAGS_WriteBufferLength,
-//                FLAGS_WriteBufferLength,
-//        }; old
         writeBuffer = {
-                (char *) malloc(FLAGS_WriteBufferLength),
                 FLAGS_WriteBufferLength,
                 0,
         };
-
-        syncWorker = new std::thread(std::bind(&ChunkWriterManager::ChunkWriterManagerCallback, this));
     }
 
     int writeClass(uint8_t *header, uint64_t headerLen, uint8_t *buffer, uint64_t bufferLen) {
@@ -56,99 +43,30 @@ public:
         writer->write((uint8_t *) buffer, bufferLen);
         writeBuffer.available += headerLen + bufferLen;
         if (writeBuffer.available >= writeBuffer.totalLength) {
-            classFlush();
+            writer->fsync();
+            delete writer;
+            containerCounter++;
+            sprintf(pathBuffer, ClassFilePath.data(), currentVersion, currentVersion, containerCounter);
+            writer = new FileOperator(pathBuffer, FileOpenType::Write);
+            writeBuffer.available = 0;
         }
         return 0;
     }
-
-    int writeClass_old(uint8_t *header, uint64_t headerLen, uint8_t *buffer, uint64_t bufferLen) {
-
-        if ((headerLen + bufferLen) > writeBuffer.available) {
-            classFlush();
-        }
-        char *writePoint = writeBuffer.buffer + writeBuffer.totalLength - writeBuffer.available;
-        memcpy(writePoint, header, headerLen);
-        writeBuffer.available -= headerLen;
-        writePoint += headerLen;
-        memcpy(writePoint, buffer, bufferLen);
-        writeBuffer.available -= bufferLen;
-
-        return 0;
-    }
-
 
     ~ChunkWriterManager() {
-        addTask(WorkerExitMagicNumber);
-        syncWorker->join();
-        classFlush();
-        writer->fdatasync();
+        writer->fsync();
         delete writer;
-        delete writeBuffer.buffer;
     }
 
 private:
-    int classFlush() {
-        writeBuffer.available = 0;
-        if (syncCounter >= FLAGS_ChunkWriterManagerFlushThreshold) {
-            addTask(classId);
-            syncCounter = 0;
-        } else {
-            syncCounter++;
-        }
-        return 0;
-    }
 
-    int classFlush_old() {
-        uint64_t flushLength = writeBuffer.totalLength - writeBuffer.available;
-        writer->write((uint8_t *) writeBuffer.buffer, flushLength);
-        writeBuffer.available = writeBuffer.totalLength;
-        if (syncCounter >= FLAGS_ChunkWriterManagerFlushThreshold) {
-            addTask(classId);
-            syncCounter = 0;
-        } else {
-            syncCounter++;
-        }
-        return 0;
-    }
-
-    int addTask(uint64_t classId) {
-        MutexLockGuard mutexLockGuard(mutexLock);
-        taskList.push_back(classId);
-        taskAmount++;
-        condition.notify();
-    }
-
-    void ChunkWriterManagerCallback(){
-        pthread_setname_np(pthread_self(), "CWriter Thread");
-        uint64_t classId;
-        while (likely(runningFlag)) {
-            {
-                MutexLockGuard mutexLockGuard(mutexLock);
-                while (!taskAmount) {
-                    condition.wait();
-                    if (unlikely(!runningFlag)) break;
-                }
-                if (unlikely(!runningFlag)) continue;
-                taskAmount--;
-                classId = taskList.front();
-                taskList.pop_front();
-            }
-
-            if(classId == WorkerExitMagicNumber){
-                break;
-            }
-
-            writer->fdatasync();
-        }
-    }
-
-    FileOperator * writer = nullptr;
+    FileOperator *writer = nullptr;
     WriteBuffer writeBuffer;
-    uint64_t syncCounter = 0;
-    uint64_t classId;
+    uint64_t currentVersion;
     char pathBuffer[256];
 
-    std::thread* syncWorker;
+    uint64_t containerCounter = 0;
+
     bool runningFlag;
     uint64_t taskAmount;
     std::list<uint64_t> taskList;

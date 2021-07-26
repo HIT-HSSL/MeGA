@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include <map>
 
-#define PreloadSize 4*1024*1024
+#define PreloadSize 4*1024*1024*2
 
 extern std::string ClassFileAppendPath;
 
@@ -54,24 +54,19 @@ public:
     void loadBaseChunks(const BasePos& basePos) {
         gettimeofday(&t0, NULL);
         char pathBuffer[256];
-        uint64_t targetCategory;
 
         if (basePos.CategoryOrder == currentVersion) {
-            targetCategory = (currentVersion - 1) * (currentVersion) / 2 + basePos.CategoryOrder;
-            sprintf(pathBuffer, ClassFilePath.data(), targetCategory);
+            sprintf(pathBuffer, ClassFilePath.data(), basePos.CategoryOrder, currentVersion, basePos.cid);
             selfHit++;
         } else if (basePos.CategoryOrder) {
-            targetCategory = (currentVersion - 2) * (currentVersion - 1) / 2 + basePos.CategoryOrder;
-            sprintf(pathBuffer, ClassFilePath.data(), targetCategory);
+            sprintf(pathBuffer, ClassFilePath.data(), basePos.CategoryOrder, currentVersion - 1, basePos.cid);
         } else {
-            targetCategory = (currentVersion - 2) * (currentVersion - 1) / 2 + 1;
-            sprintf(pathBuffer, ClassFileAppendPath.data(), targetCategory);
+            sprintf(pathBuffer, ClassFileAppendPath.data(), currentVersion - 1, 1, basePos.cid);
         }
 
         uint64_t readSize = 0;
         {
             FileOperator basefile(pathBuffer, FileOpenType::Read);
-            basefile.seek(basePos.offset);
             readSize = basefile.read(preloadBuffer, PreloadSize);
             basefile.releaseBufferedData();
             assert(basePos.length <= readSize);

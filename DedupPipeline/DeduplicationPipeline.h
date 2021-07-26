@@ -163,7 +163,7 @@ private:
                 uint64_t key;
                 BaseChunkPositions *bcp = (BaseChunkPositions *) &key;
                 bcp->category = entry.basePos.CategoryOrder;
-                bcp->quantizedOffset = entry.basePos.offset / preloadQuantizer;
+                bcp->quantizedOffset = entry.basePos.cid;
                 auto iter = baseChunkPositions.find(key);
                 if (iter == baseChunkPositions.end()) {
                     baseChunkPositions.insert({key, 1});
@@ -182,7 +182,7 @@ private:
                 uint64_t key;
                 BaseChunkPositions *bcp = (BaseChunkPositions *) &key;
                 bcp->category = entry.basePos.CategoryOrder;
-                bcp->quantizedOffset = entry.basePos.offset / preloadQuantizer;
+                bcp->quantizedOffset = entry.basePos.cid;
                 if (baseChunkPositions[key] == 0) {
                     entry.deltaReject = true;
                 }
@@ -287,6 +287,10 @@ private:
                         writeTask.baseFP = entry.basePos.sha1Fp;
                         deltaReduceLength += entry.length - deltaSize;
                         lastCategoryLength += deltaSize + sizeof(BlockHeader);
+                        if (lastCategoryLength >= FLAGS_WriteBufferLength) {
+                            lastCategoryLength = 0;
+                            currentCID++;
+                        }
                         chunkCounter[3]++;
                     }
                 } else {
@@ -296,10 +300,14 @@ private:
                     GlobalMetadataManagerPtr->uniqueAddRecord(entry.fp, entry.fileID, entry.length);
                     GlobalMetadataManagerPtr->addSimilarFeature(entry.similarityFeatures,
                                                                 {entry.fp, (uint32_t) entry.fileID,
-                                                                 lastCategoryLength, entry.length});
+                                                                 currentCID, entry.length});
                     writeTask.similarityFeatures = entry.similarityFeatures;
                     baseCache.addRecord(writeTask.sha1Fp, writeTask.buffer + writeTask.pos, writeTask.length);
                     lastCategoryLength += entry.length + sizeof(BlockHeader);
+                    if (lastCategoryLength >= FLAGS_WriteBufferLength) {
+                        lastCategoryLength = 0;
+                        currentCID++;
+                    }
                 }
                 afterDedupLength += entry.length;
             } else if (lookupResult == LookupResult::InternalDedup) {
@@ -365,6 +373,7 @@ private:
     uint64_t adjacentDuplicates = 0;
     uint64_t deltaReduceLength = 0;
     uint64_t lastCategoryLength = 0;
+    uint64_t currentCID = 0;
 
     uint64_t chunkCounter[4] = {0, 0, 0, 0};
     uint64_t xdeltaError = 0;

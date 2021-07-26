@@ -83,7 +83,7 @@ public:
     }
 
     ~RestoreWritePipeline() {
-        printf("write amplification: %f\n", (float) extraIO / normalIO);.
+        printf("write amplification: %f\n", (float) extraIO / normalIO);
         printf("restore write duration :%lu\n", duration);
         printf("read time:%lu, decoding time:%lu\n", readTime, decodingTime);
         printf("total chunks:%lu, delta chunks:%lu\n", chunkCounter, deltaCounter);

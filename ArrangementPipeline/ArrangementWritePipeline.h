@@ -44,14 +44,12 @@ public:
 private:
     void arrangementWriteCallback(){
         pthread_setname_np(pthread_self(), "AWriting Thread");
-        ArrangementWriteTask* arrangementWriteTask;
+        ArrangementWriteTask *arrangementWriteTask;
         char pathBuffer[256];
-        uint64_t* length;
         uint64_t currentVersion = 0;
         uint64_t classIter = 0;
-        uint64_t classCounter =0;
-        uint64_t offsetPtr = 0;
-        uint64_t baseClassId = 0;
+        uint64_t archivedLength = 0;
+        uint64_t activeLength = 0;
 
         while (likely(runningFlag)) {
             {
@@ -70,57 +68,50 @@ private:
                 VolumeFileHeader versionFileHeader = {
                         .offsetCount = arrangementWriteTask->arrangementVersion
                 };
-                length = (uint64_t*)malloc(sizeof(uint64_t)*versionFileHeader.offsetCount);
                 currentVersion = arrangementWriteTask->arrangementVersion;
                 classIter = 0;
-                classCounter = 0;
-                baseClassId = (currentVersion+1)*(currentVersion)/2+1;
+                archivedLength = 0;
 
-                sprintf(pathBuffer, VersionFilePath.data(), arrangementWriteTask->arrangementVersion);
+                sprintf(pathBuffer, VersionFilePath.data(), classIter + 1, currentVersion, archiveCID);
                 archivedFileOperator = new FileOperator(pathBuffer, FileOpenType::Write);
-                archivedFileOperator->trunc(GlobalMetadataManagerPtr->arrangementGetTruncateSize() + (arrangementWriteTask->arrangementVersion+1)*sizeof(uint64_t));
-                archivedFileOperator->seek(0);
-                archivedFileOperator->write((uint8_t*)&versionFileHeader, sizeof(uint64_t));
-                archivedFileOperator->seek(sizeof(VolumeFileHeader) + sizeof(uint64_t) * versionFileHeader.offsetCount);
-                archivedFileWriter = new BufferedFileWriter(archivedFileOperator, FLAGS_ArrangementFlushBufferLength, 4);
 
-                sprintf(pathBuffer, ClassFilePath.data(), baseClassId);
+                sprintf(pathBuffer, ClassFilePath.data(), classIter + 1, currentVersion + 1, activeCID);
                 activeFileOperator = new FileOperator(pathBuffer, FileOpenType::Write);
-                activeFileWriter = new BufferedFileWriter(activeFileOperator, FLAGS_ArrangementFlushBufferLength, 4);
             }
-            else if(arrangementWriteTask->classEndFlag){
-                length[classIter] = classCounter;
+            else if(arrangementWriteTask->classEndFlag) {
                 classIter++;
-                classCounter = 0;
-                offsetPtr = 0;
-
-                sprintf(pathBuffer, ClassFilePath.data(), arrangementWriteTask->beforeClassId);
-                remove(pathBuffer);
+                archivedLength = 0;
+                activeLength = 0;
 
                 delete arrangementWriteTask;
-                delete activeFileWriter;
-                delete activeFileOperator;
 
-                if(classIter < currentVersion){
-                    sprintf(pathBuffer, ClassFilePath.data(), baseClassId+classIter);
+                activeFileOperator->fsync();
+                delete activeFileOperator;
+                archivedFileOperator->fsync();
+                delete archivedFileOperator;
+
+                activeCID = 0;
+                archiveCID = 0;
+
+                if (classIter < currentVersion) {
+                    sprintf(pathBuffer, VersionFilePath.data(), classIter + 1, currentVersion, archiveCID);
+                    archivedFileOperator = new FileOperator(pathBuffer, FileOpenType::Write);
+
+                    sprintf(pathBuffer, ClassFilePath.data(), classIter + 1, currentVersion + 1, activeCID);
                     activeFileOperator = new FileOperator(pathBuffer, FileOpenType::Write);
-                    activeFileWriter = new BufferedFileWriter(activeFileOperator, FLAGS_ArrangementFlushBufferLength, 4);
                 }
                 continue;
             }
-            else if(arrangementWriteTask->finalEndFlag){
+            else if(arrangementWriteTask->finalEndFlag) {
                 printf("ActiveChunks:%lu, ArchivedChunks:%lu\n", activeChunks, archivedChunks);
-                delete archivedFileWriter;
-                archivedFileWriter = nullptr;
+//                activeFileOperator->fsync();
+//                delete activeFileOperator;
+//                archivedFileOperator->fsync();
+//                delete archivedFileOperator;
 
-                archivedFileOperator->seek(sizeof(VolumeFileHeader));
-                archivedFileOperator->write((uint8_t *) length, sizeof(uint64_t) * currentVersion);
+                activeCID = 0;
+                archiveCID = 0;
 
-                archivedFileOperator->fdatasync();
-                delete archivedFileOperator;
-                archivedFileOperator = nullptr;
-
-                free(length);
                 currentVersion = -1;
 
                 GlobalMetadataManagerPtr->tableRolling();
@@ -129,20 +120,38 @@ private:
                 printf("ArrangementWritePipeline finish\n");
                 continue;
             }
-            else if(arrangementWriteTask->isArchived){
-                archivedFileWriter->write(arrangementWriteTask->writeBuffer, arrangementWriteTask->length);
-                classCounter += arrangementWriteTask->length;
+            else if(arrangementWriteTask->isArchived) {
+                archivedFileOperator->write(arrangementWriteTask->writeBuffer, arrangementWriteTask->length);
+                archivedLength += arrangementWriteTask->length;
+                if (archivedLength >= ContainerSize) {
+                    archivedLength = 0;
+                    archiveCID++;
+                    archivedFileOperator->fsync();
+                    delete archivedFileOperator;
+
+                    sprintf(pathBuffer, VersionFilePath.data(), classIter + 1, currentVersion, archiveCID);
+                    archivedFileOperator = new FileOperator(pathBuffer, FileOpenType::Write);
+                }
                 archivedChunks++;
-            }else{
-                BlockHeader* bhPtr = (BlockHeader*)arrangementWriteTask->writeBuffer;
-                activeFileWriter->write(arrangementWriteTask->writeBuffer, arrangementWriteTask->length);
+            }else {
+                BlockHeader *bhPtr = (BlockHeader *) arrangementWriteTask->writeBuffer;
+                activeFileOperator->write(arrangementWriteTask->writeBuffer, arrangementWriteTask->length);
                 if (!bhPtr->type) {
                     GlobalMetadataManagerPtr->addSimilarFeature(
                             bhPtr->sFeatures,
-                            {bhPtr->fp, (uint32_t) classIter + 1, offsetPtr,
+                            {bhPtr->fp, (uint32_t) classIter + 1, activeCID,
                              arrangementWriteTask->length - sizeof(BlockHeader)});
                 }
-                offsetPtr += arrangementWriteTask->length;
+                activeLength += arrangementWriteTask->length;
+                if (activeLength >= ContainerSize) {
+                    activeLength = 0;
+                    activeCID++;
+                    activeFileOperator->fsync();
+                    delete activeFileOperator;
+
+                    sprintf(pathBuffer, ClassFilePath.data(), classIter + 1, currentVersion + 1, activeCID);
+                    activeFileOperator = new FileOperator(pathBuffer, FileOpenType::Write);
+                }
                 activeChunks++;
             }
         }
@@ -151,17 +160,16 @@ private:
     bool runningFlag;
     std::thread *worker;
     uint64_t taskAmount;
-    std::list<ArrangementWriteTask*> taskList;
+    std::list<ArrangementWriteTask *> taskList;
     MutexLock mutexLock;
     Condition condition;
 
-    FileOperator* archivedFileOperator = nullptr;
-//    FileOperator* activeFileOperator = nullptr;
-    BufferedFileWriter* archivedFileWriter = nullptr;
-//    BufferedFileWriter* activeFileWriter = nullptr;
+    FileOperator *archivedFileOperator = nullptr;
 
-    FileOperator* activeFileOperator = nullptr;
-    BufferedFileWriter* activeFileWriter = nullptr;
+    FileOperator *activeFileOperator = nullptr;
+
+    uint64_t activeCID = 0;
+    uint64_t archiveCID = 0;
 
     uint64_t activeChunks = 0, archivedChunks = 0;
 };

@@ -40,11 +40,6 @@ private:
     void arrangementFilterCallback(){
         pthread_setname_np(pthread_self(), "AFilter Thread");
         ArrangementFilterTask* arrangementFilterTask;
-        uint8_t* temp = (uint8_t*)malloc(FLAGS_ArrangementReadBufferLength);
-
-        uint64_t taskRemain = 0;
-        uint64_t leftLength = 0;
-        uint64_t copyLength = 0;
         BlockHeader *blockHeader;
 
         while (likely(runningFlag)) {
@@ -86,48 +81,24 @@ private:
                 continue;
             }
 
-            if (leftLength + arrangementFilterTask->length > FLAGS_ArrangementReadBufferLength) {
-                copyLength = FLAGS_ArrangementReadBufferLength - leftLength;
-                taskRemain = arrangementFilterTask->length - copyLength;
-            } else {
-                copyLength = arrangementFilterTask->length;
-                taskRemain = 0;
-            }
-            uint64_t parseLeft = copyLength + leftLength;
-            memcpy(temp + leftLength, arrangementFilterTask->readBuffer, copyLength);
-
             uint64_t readoffset = 0;
+            uint8_t *bufferPtr = arrangementFilterTask->readBuffer;
 
-            while (1) {
-                blockHeader = (BlockHeader *) (temp + readoffset);
-                if (parseLeft < sizeof(BlockHeader) || parseLeft < sizeof(BlockHeader) + blockHeader->length) {
-                    memcpy(temp, temp + readoffset, parseLeft);
-                    memcpy(temp + parseLeft, arrangementFilterTask->readBuffer + copyLength, taskRemain);
-                    readoffset = 0;
-                    parseLeft += taskRemain;
-
-                    taskRemain = 0;
-                    copyLength += taskRemain;
-                    blockHeader = (BlockHeader *) (temp + readoffset);
-
-                    if (parseLeft < sizeof(BlockHeader) || parseLeft < sizeof(BlockHeader) + blockHeader->length) {
-                        leftLength = parseLeft;
-                        break;
-                    }
-                }
+            while (readoffset < arrangementFilterTask->length) {
+                blockHeader = (BlockHeader *) (bufferPtr + readoffset);
 
                 int r = GlobalMetadataManagerPtr->arrangementLookup(blockHeader->fp);
-                if(!r){
-                    ArrangementWriteTask* arrangementWriteTask = new ArrangementWriteTask(
-                            (uint8_t*)blockHeader,
+                if (!r) {
+                    ArrangementWriteTask *arrangementWriteTask = new ArrangementWriteTask(
+                            (uint8_t *) blockHeader,
                             blockHeader->length + sizeof(BlockHeader),
                             arrangementFilterTask->classId,
                             arrangementFilterTask->arrangementVersion,
                             true);
                     GlobalArrangementWritePipelinePtr->addTask(arrangementWriteTask);
                 }else{
-                    ArrangementWriteTask* arrangementWriteTask = new ArrangementWriteTask(
-                            (uint8_t*)blockHeader,
+                    ArrangementWriteTask *arrangementWriteTask = new ArrangementWriteTask(
+                            (uint8_t *) blockHeader,
                             blockHeader->length + sizeof(BlockHeader),
                             arrangementFilterTask->classId,
                             arrangementFilterTask->arrangementVersion,
@@ -135,8 +106,8 @@ private:
                     GlobalArrangementWritePipelinePtr->addTask(arrangementWriteTask);
                 }
                 readoffset += sizeof(BlockHeader) + blockHeader->length;
-                parseLeft -= sizeof(BlockHeader) + blockHeader->length;
             }
+            assert(readoffset == arrangementFilterTask->length);
 
             delete arrangementFilterTask;
         }
