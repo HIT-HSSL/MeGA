@@ -27,17 +27,17 @@ public:
         printf("start to eliminate\n");
 
         printf("delete invalid LC-groups\n");
-
         versionFileDeleter(1);
 
         printf("processing categories files\n");
-        classFileCombinationProcessor(1, 2, maxVersion);
+        activeFileCombinationProcessor(1, 2, maxVersion);
         for (uint64_t i = 3; i <= maxVersion; i++) {
             classFileProcessor(i, maxVersion);
         }
 
         printf("processing volume files\n");
         for (uint64_t i = 2; i <= maxVersion - 1; i++) {
+            archivedFileCombinationProcessor(1, 2, i);
             versionFileProcessor(i);
         }
 
@@ -63,15 +63,15 @@ private:
     int versionFileProcessor(uint64_t versionId) {
         // append first two archived categories in volumes.
 
-        for (int i = 1; i < versionId; i++) {
+        for (int i = 3; i < versionId; i++) {
             uint64_t cid = 0;
             while (1) {
-                sprintf(oldPath, ClassFilePath.data(), i, versionId, cid);
+                sprintf(oldPath, VersionFilePath.data(), i, versionId, cid);
                 FileOperator fileOperator(oldPath, FileOpenType::TRY);
                 if (!fileOperator.ok()) {
                     break;
                 }
-                sprintf(newPath, ClassFilePath.data(), i, versionId - 1, cid);
+                sprintf(newPath, VersionFilePath.data(), i - 1, versionId - 1, cid);
                 rename(oldPath, newPath);
                 cid++;
             }
@@ -81,10 +81,10 @@ private:
     }
 
     int versionFileDeleter(uint64_t versionId) {
-        for (int i = 1; i < versionId; i++) {
+        for (int i = 1; i <= versionId; i++) {
             uint64_t cid = 0;
             while (1) {
-                sprintf(oldPath, ClassFilePath.data(), i, versionId, cid);
+                sprintf(oldPath, VersionFilePath.data(), i, versionId, cid);
                 {
                     FileOperator fileOperator(oldPath, FileOpenType::TRY);
                     if (!fileOperator.ok()) {
@@ -107,14 +107,14 @@ private:
             if (!fileOperator.ok()) {
                 break;
             }
-            sprintf(newPath, ClassFilePath.data(), classId, maxVersion - 1, cid);
+            sprintf(newPath, ClassFilePath.data(), classId - 1, maxVersion - 1, cid);
             rename(oldPath, newPath);
             cid++;
         }
         return 0;
     }
 
-    int classFileCombinationProcessor(uint64_t classId1, uint64_t classId2, uint64_t maxVersion) {
+    int activeFileCombinationProcessor(uint64_t classId1, uint64_t classId2, uint64_t maxVersion) {
         // rolling back serial number of categories
         // append first two active categories.
         uint64_t cid = 0;
@@ -138,6 +138,38 @@ private:
             }
             sprintf(newPath, ClassFileAppendPath.data(), classId1, maxVersion - 1, cid);
             rename(oldPath, newPath);
+            cid++;
+        }
+
+        return 0;
+    }
+
+    int archivedFileCombinationProcessor(uint64_t classId1, uint64_t classId2, uint64_t version) {
+        // rolling back serial number of categories
+        // append first two active categories.
+        uint64_t cid = 0;
+        while (1) {
+            sprintf(oldPath, VersionFilePath.data(), classId1, version, cid);
+            FileOperator fileOperator(oldPath, FileOpenType::TRY);
+            if (!fileOperator.ok()) {
+                break;
+            }
+            sprintf(newPath, VersionFilePath.data(), classId1, version - 1, cid);
+            rename(oldPath, newPath);
+            cid++;
+        }
+
+        cid = 0;
+        uint64_t acid = 0;
+        while (1) {
+            sprintf(oldPath, VersionFilePath.data(), classId2, version, acid);
+            FileOperator fileOperator(oldPath, FileOpenType::TRY);
+            if (!fileOperator.ok()) {
+                break;
+            }
+            sprintf(newPath, VersionFilePath.data(), classId1, version - 1, cid);
+            rename(oldPath, newPath);
+            acid++;
             cid++;
         }
 

@@ -45,8 +45,8 @@ public:
                 file = fopen(path, "rb");
                 break;
         }
-        if (!file && fileOpenType != FileOpenType::TRY) {
-            printf("Can not open file %s : %s\n", path, strerror(errno));
+        if (!file) {
+            if (fileOpenType != FileOpenType::TRY) printf("Can not open file %s : %s\n", path, strerror(errno));
             status = -1;
         } else {
             fileCounter++;

@@ -61,7 +61,7 @@ public:
         } else if (basePos.CategoryOrder) {
             sprintf(pathBuffer, ClassFilePath.data(), basePos.CategoryOrder, currentVersion - 1, basePos.cid);
         } else {
-            sprintf(pathBuffer, ClassFileAppendPath.data(), currentVersion - 1, 1, basePos.cid);
+            sprintf(pathBuffer, ClassFileAppendPath.data(), 1, currentVersion - 1, basePos.cid);
         }
 
         uint64_t readSize = 0;
