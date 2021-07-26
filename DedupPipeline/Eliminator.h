@@ -25,12 +25,14 @@ public:
 
     int run(uint64_t maxVersion) {
         printf("start to eliminate\n");
-        uint64_t startClass = (maxVersion - 1) * maxVersion / 2 + 1;
-        uint64_t endClass = (maxVersion + 1) * maxVersion / 2;
+
+        printf("delete invalid LC-groups\n");
+
+        versionFileDeleter(1);
 
         printf("processing categories files\n");
-        classFileCombinationProcessor(startClass, startClass + 1, maxVersion);
-        for (uint64_t i = startClass + 2; i <= endClass; i++) {
+        classFileCombinationProcessor(1, 2, maxVersion);
+        for (uint64_t i = 3; i <= maxVersion; i++) {
             classFileProcessor(i, maxVersion);
         }
 
@@ -60,45 +62,84 @@ private:
 
     int versionFileProcessor(uint64_t versionId) {
         // append first two archived categories in volumes.
-        sprintf(oldPath, VersionFilePath.data(), versionId);
-        sprintf(newPath, VersionFilePath.data(), versionId - 1);
-        FileOperator fileOperator(oldPath, FileOpenType::ReadWrite);
 
-        VolumeFileHeader versionFileHeader;
-        fileOperator.read((uint8_t * ) & versionFileHeader, sizeof(VolumeFileHeader));
-        uint64_t *offset = (uint64_t *) malloc(versionFileHeader.offsetCount * sizeof(uint64_t));
-        fileOperator.read((uint8_t *) offset, versionFileHeader.offsetCount * sizeof(uint64_t));
-        offset[0] += offset[1];
-        for (int i = 1; i < versionFileHeader.offsetCount - 1; i++) {
-            offset[i] = offset[i + 1];
+        for (int i = 1; i < versionId; i++) {
+            uint64_t cid = 0;
+            while (1) {
+                sprintf(oldPath, ClassFilePath.data(), i, versionId, cid);
+                FileOperator fileOperator(oldPath, FileOpenType::TRY);
+                if (!fileOperator.ok()) {
+                    break;
+                }
+                sprintf(newPath, ClassFilePath.data(), i, versionId - 1, cid);
+                rename(oldPath, newPath);
+                cid++;
+            }
         }
-        offset[versionFileHeader.offsetCount - 1] = -1;
-        fileOperator.seek(sizeof(VolumeFileHeader));
-        fileOperator.write((uint8_t *) offset, versionFileHeader.offsetCount * sizeof(uint64_t));
 
-        rename(oldPath, newPath);
+        return 0;
+    }
 
+    int versionFileDeleter(uint64_t versionId) {
+        for (int i = 1; i < versionId; i++) {
+            uint64_t cid = 0;
+            while (1) {
+                sprintf(oldPath, ClassFilePath.data(), i, versionId, cid);
+                {
+                    FileOperator fileOperator(oldPath, FileOpenType::TRY);
+                    if (!fileOperator.ok()) {
+                        break;
+                    }
+                }
+                remove(oldPath);
+                cid++;
+            }
+        }
         return 0;
     }
 
     int classFileProcessor(uint64_t classId, uint64_t maxVersion) {
         // rolling back serial number of categories
-        sprintf(oldPath, ClassFilePath.data(), classId);
-        sprintf(newPath, ClassFilePath.data(), classId - maxVersion);
-        rename(oldPath, newPath);
+        uint64_t cid = 0;
+        while (1) {
+            sprintf(oldPath, ClassFilePath.data(), classId, maxVersion, cid);
+            FileOperator fileOperator(oldPath, FileOpenType::TRY);
+            if (!fileOperator.ok()) {
+                break;
+            }
+            sprintf(newPath, ClassFilePath.data(), classId, maxVersion - 1, cid);
+            rename(oldPath, newPath);
+            cid++;
+        }
         return 0;
     }
 
     int classFileCombinationProcessor(uint64_t classId1, uint64_t classId2, uint64_t maxVersion) {
         // rolling back serial number of categories
         // append first two active categories.
-        sprintf(oldPath, ClassFilePath.data(), classId1);
-        sprintf(newPath, ClassFilePath.data(), classId1 - (maxVersion-1));
-        rename(oldPath, newPath);
+        uint64_t cid = 0;
+        while (1) {
+            sprintf(oldPath, ClassFilePath.data(), classId1, maxVersion, cid);
+            FileOperator fileOperator(oldPath, FileOpenType::TRY);
+            if (!fileOperator.ok()) {
+                break;
+            }
+            sprintf(newPath, ClassFilePath.data(), classId1, maxVersion - 1, cid);
+            rename(oldPath, newPath);
+            cid++;
+        }
 
-        sprintf(oldPath, ClassFilePath.data(), classId2);
-        sprintf(newPath, ClassFileAppendPath.data(), classId1 - (maxVersion-1));
-        rename(oldPath, newPath);
+        cid = 0;
+        while (1) {
+            sprintf(oldPath, ClassFilePath.data(), classId2, maxVersion, cid);
+            FileOperator fileOperator(oldPath, FileOpenType::TRY);
+            if (!fileOperator.ok()) {
+                break;
+            }
+            sprintf(newPath, ClassFileAppendPath.data(), classId1, maxVersion - 1, cid);
+            rename(oldPath, newPath);
+            cid++;
+        }
 
         return 0;
     }
