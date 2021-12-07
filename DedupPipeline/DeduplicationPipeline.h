@@ -56,12 +56,11 @@ public:
     void getStatistics() {
         printf("Deduplicating Duration : %lu\n", duration);
         printf("Delta duration : %lu\n", deltaTime);
-        printf("Unique:%lu, Internal:%lu, Adjacent:%lu, Delta:%lu\n", chunkCounter[0], chunkCounter[1], chunkCounter[2], chunkCounter[3]);
+        printf("Unique:%lu, Internal:%lu, Adjacent:%lu, Delta:%lu\n", chunkCounter[0], chunkCounter[1], chunkCounter[2],
+               chunkCounter[3]);
         printf("xdeltaError:%lu\n", xdeltaError);
-        printf("Total Length : %lu, Unique Length : %lu, Adjacent Length: %lu, Delta Reduce: %lu, Dedup Ratio : %f\n",
-               totalLength, afterDedupLength, adjacentDuplicates, deltaReduceLength,
-               (float) totalLength / (afterDedupLength - deltaReduceLength));
-        printf("cut times:%lu, cut length:%lu\n", cutTimes, cutLength);
+        printf("Total Length : %lu, AfterDedup : %lu, AfterDelta: %lu, DedupRatio : %f, DeltaRatio : %f\n",
+               totalLength, afterDedup, afterDelta, (float) totalLength / afterDedup, (float) totalLength / afterDelta);
         printf("Capping Reject:%lu\n", cappingReject);
     }
 
@@ -214,6 +213,7 @@ private:
             writeTask.type = (int) lookupResult;
 
             if (lookupResult == LookupResult::Unique) {
+                afterDedup += entry.length;
                 chunkCounter[(int) lookupResult]++;
                 LookupResult similarLookupResult = LookupResult::Dissimilar;
                 if (DeltaSwitch) {
@@ -268,13 +268,13 @@ private:
                         writeTask.oriLength = entry.length;
                         writeTask.deltaTag = 1;
                         writeTask.baseFP = entry.basePos.sha1Fp;
-                        deltaReduceLength += entry.length - deltaSize;
                         lastCategoryLength += deltaSize + sizeof(BlockHeader);
                         if (lastCategoryLength >= ContainerSize) {
                             lastCategoryLength = 0;
                             currentCID++;
                         }
                         chunkCounter[3]++;
+                        afterDelta += deltaSize;
                     }
                 } else {
                     unique:
@@ -291,8 +291,8 @@ private:
                         lastCategoryLength = 0;
                         currentCID++;
                     }
+                    afterDelta += entry.length;
                 }
-                afterDedupLength += entry.length;
             } else if (lookupResult == LookupResult::InternalDedup) {
                 chunkCounter[(int) lookupResult]++;
                 // nothing to do
@@ -305,7 +305,6 @@ private:
                 writeTask.length = fpTableEntry.length;
             } else if (lookupResult == LookupResult::AdjacentDedup) {
                 chunkCounter[(int) lookupResult]++;
-                adjacentDuplicates += entry.length;
                 GlobalMetadataManagerPtr->neighborAddRecord(writeTask.sha1Fp, fpTableEntry);
                 if (fpTableEntry.deltaTag) {
                     writeTask.length = fpTableEntry.length;
@@ -352,9 +351,8 @@ private:
     BaseCache baseCache;
 
     uint64_t totalLength = 0;
-    uint64_t afterDedupLength = 0;
-    uint64_t adjacentDuplicates = 0;
-    uint64_t deltaReduceLength = 0;
+    uint64_t afterDedup = 0;
+    uint64_t afterDelta = 0;
     uint64_t lastCategoryLength = 0;
     uint64_t currentCID = 0;
 
@@ -364,7 +362,6 @@ private:
     uint64_t duration = 0;
     uint64_t deltaTime = 0;
 
-    uint64_t cutLength = 0, cutTimes = 0;
     uint64_t cappingReject = 0;
 
     bool newVersionFlag = true;

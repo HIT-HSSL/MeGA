@@ -78,6 +78,7 @@ public:
         assert(!ZSTD_isError(compressedSize));
         writer->write(writeBuffer.compressBuffer, compressedSize);
         writer->fsync();
+        writer->releaseBufferedData();
         delete writer;
         writer = nullptr;
     }
