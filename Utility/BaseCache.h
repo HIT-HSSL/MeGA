@@ -30,15 +30,15 @@ public:
         decompressBuffer = (uint8_t *) malloc(PreloadSize);
     }
 
-    void setCurrentVersion(uint64_t verison) {
-        currentVersion = verison;
+    void setCurrentVersion(uint64_t version) {
+        currentVersion = version;
     }
 
-    ~BaseCache(){
+    ~BaseCache() {
         statistics();
         free(preloadBuffer);
         free(decompressBuffer);
-        for(const auto& blockEntry: cacheMap){
+        for (const auto &blockEntry: cacheMap) {
             free(blockEntry.second.block);
         }
     }
@@ -51,6 +51,7 @@ public:
         printf("cache miss %lu times, total loading time %lu us, average %f us\n", access - success, loadingTime,
                (float) loadingTime / (access - success));
         printf("self hit:%lu\n", selfHit);
+        printf("cache prefetching size:%lu\n", prefetching);
     }
 
     void loadBaseChunks(const BasePos& basePos) {
@@ -71,6 +72,7 @@ public:
             FileOperator basefile(pathBuffer, FileOpenType::Read);
             uint64_t decompressSize = basefile.read(decompressBuffer, PreloadSize);
             basefile.releaseBufferedData();
+            prefetching += decompressSize;
 
             readSize = ZSTD_decompress(preloadBuffer, PreloadSize, decompressBuffer, decompressSize);
             assert(!ZSTD_isError(readSize));
@@ -250,6 +252,8 @@ private:
 
     uint8_t *preloadBuffer = nullptr;
     uint8_t *decompressBuffer = nullptr;
+
+    uint64_t prefetching = 0;
 };
 
 #endif //MEGA_BASECACHE_H
