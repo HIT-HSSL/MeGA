@@ -28,8 +28,6 @@ DEFINE_uint64(CappingThreshold,
 
 extern bool DeltaSwitch;
 
-uint64_t preloadQuantizer = 4 * 1024 * 1024;
-
 class DeduplicationPipeline {
 public:
     DeduplicationPipeline()
@@ -241,7 +239,7 @@ private:
                                           tempBlockEntry.block, tempBlockEntry.length, tempBuffer, &deltaSize,
                                           entry.length, XD3_COMPLEVEL_1);
 //                    if (tempBlockEntry.length >= entry.length) {
-//                        r = xd3_encode_memory(entry.buffer + entry.pos, entry.length,
+//                        r = xd3_encode_memory(entry.writeBuffer + entry.pos, entry.length,
 //                                              tempBlockEntry.block, entry.length, tempBuffer, &deltaSize,
 //                                              entry.length, XD3_COMPLEVEL_1);
 //                        cutLength += tempBlockEntry.length - entry.length;
@@ -250,7 +248,7 @@ private:
 //                        uint8_t *baseBuffer = (uint8_t *) malloc(entry.length);
 //                        memset(baseBuffer, 0, entry.length);
 //                        memcpy(baseBuffer, tempBlockEntry.block, tempBlockEntry.length);
-//                        r = xd3_encode_memory(entry.buffer + entry.pos, entry.length, baseBuffer,
+//                        r = xd3_encode_memory(entry.writeBuffer + entry.pos, entry.length, baseBuffer,
 //                                              entry.length, tempBuffer, &deltaSize, entry.length,
 //                                              XD3_COMPLEVEL_1);
 //                        free(baseBuffer);
@@ -287,7 +285,7 @@ private:
                         writeTask.baseFP = entry.basePos.sha1Fp;
                         deltaReduceLength += entry.length - deltaSize;
                         lastCategoryLength += deltaSize + sizeof(BlockHeader);
-                        if (lastCategoryLength >= FLAGS_WriteBufferLength) {
+                        if (lastCategoryLength >= ContainerSize) {
                             lastCategoryLength = 0;
                             currentCID++;
                         }
@@ -304,7 +302,7 @@ private:
                     writeTask.similarityFeatures = entry.similarityFeatures;
                     baseCache.addRecord(writeTask.sha1Fp, writeTask.buffer + writeTask.pos, writeTask.length);
                     lastCategoryLength += entry.length + sizeof(BlockHeader);
-                    if (lastCategoryLength >= FLAGS_WriteBufferLength) {
+                    if (lastCategoryLength >= ContainerSize) {
                         lastCategoryLength = 0;
                         currentCID++;
                     }

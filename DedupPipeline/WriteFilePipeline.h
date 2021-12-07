@@ -15,6 +15,7 @@
 #include "../Utility/ChunkWriterManager.h"
 #include "../Utility/Likely.h"
 #include "../Utility/BufferedFileWriter.h"
+#include <zstd.h>
 
 extern std::string LogicFilePath;
 

@@ -138,9 +138,17 @@ private:
             for (int j = cidMax; j >= 0; j--) {
                 sprintf(filePath, VersionFilePath.data(), i, versionId, j);
                 FileOperator archivedReader(filePath, FileOpenType::Read);
-                uint8_t *readBuffer = (uint8_t *) malloc(FLAGS_RestoreReadBufferLength);
-                uint64_t bytesForHeaderLength = archivedReader.read(readBuffer, FLAGS_RestoreReadBufferLength);
-                RestoreParseTask *restoreParseTask = new RestoreParseTask(readBuffer, bytesForHeaderLength);
+                uint8_t *readBuffer = (uint8_t *) malloc(RestoreReadBufferLength);
+                uint64_t readLength = archivedReader.read(readBuffer, RestoreReadBufferLength);
+
+                uint8_t *decompressBuffer = (uint8_t *) malloc(RestoreReadBufferLength);
+                size_t decompressedSize = ZSTD_decompress(decompressBuffer, RestoreReadBufferLength, readBuffer,
+                                                          readLength);
+                assert(!ZSTD_isError(decompressedSize));
+                free(readBuffer);
+
+                RestoreParseTask *restoreParseTask = new RestoreParseTask(decompressBuffer, decompressedSize,
+                                                                          readLength);
                 restoreParseTask->index = versionId;
                 GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
             }
@@ -164,9 +172,16 @@ private:
         for (int j = cidMax; j >= 0; j--) {
             sprintf(filePath, ClassFilePath.data(), classId, column, j);
             FileOperator activeReader(filePath, FileOpenType::Read);
-            uint8_t *readBuffer = (uint8_t *) malloc(FLAGS_RestoreReadBufferLength);
-            uint64_t bytesForHeaderLength = activeReader.read(readBuffer, FLAGS_RestoreReadBufferLength);
-            RestoreParseTask *restoreParseTask = new RestoreParseTask(readBuffer, bytesForHeaderLength);
+            uint8_t *readBuffer = (uint8_t *) malloc(RestoreReadBufferLength);
+            uint64_t readLength = activeReader.read(readBuffer, RestoreReadBufferLength);
+
+            uint8_t *decompressBuffer = (uint8_t *) malloc(RestoreReadBufferLength);
+            size_t decompressedSize = ZSTD_decompress(decompressBuffer, RestoreReadBufferLength, readBuffer,
+                                                      readLength);
+            assert(!ZSTD_isError(decompressedSize));
+            free(readBuffer);
+
+            RestoreParseTask *restoreParseTask = new RestoreParseTask(decompressBuffer, decompressedSize, readLength);
             restoreParseTask->index = column;
             GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
         }
@@ -189,9 +204,16 @@ private:
         for (int j = cidMax; j >= 0; j--) {
             sprintf(filePath, ClassFileAppendPath.data(), classId, column, j);
             FileOperator activeReader(filePath, FileOpenType::Read);
-            uint8_t *readBuffer = (uint8_t *) malloc(FLAGS_RestoreReadBufferLength);
-            uint64_t bytesForHeaderLength = activeReader.read(readBuffer, FLAGS_RestoreReadBufferLength);
-            RestoreParseTask *restoreParseTask = new RestoreParseTask(readBuffer, bytesForHeaderLength);
+            uint8_t *readBuffer = (uint8_t *) malloc(RestoreReadBufferLength);
+            uint64_t readLength = activeReader.read(readBuffer, RestoreReadBufferLength);
+
+            uint8_t *decompressBuffer = (uint8_t *) malloc(RestoreReadBufferLength);
+            size_t decompressedSize = ZSTD_decompress(decompressBuffer, RestoreReadBufferLength, readBuffer,
+                                                      readLength);
+            assert(!ZSTD_isError(decompressedSize));
+            free(readBuffer);
+
+            RestoreParseTask *restoreParseTask = new RestoreParseTask(decompressBuffer, decompressedSize, readLength);
             restoreParseTask->index = column;
             GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
         }

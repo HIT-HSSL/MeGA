@@ -12,9 +12,9 @@
 #include <unordered_map>
 #include <map>
 
-#define PreloadSize 4*1024*1024*2
-
 extern std::string ClassFileAppendPath;
+extern uint64_t ContainerSize;
+uint64_t PreloadSize = ContainerSize * 1.2;
 
 DEFINE_uint64(CacheSize,
               128, "CappingThreshold");
@@ -27,6 +27,7 @@ class BaseCache {
 public:
     BaseCache() : totalSize(0), index(0), cacheMap(65536), write(0), read(0) {
         preloadBuffer = (uint8_t *) malloc(PreloadSize);
+        decompressBuffer = (uint8_t *) malloc(PreloadSize);
     }
 
     void setCurrentVersion(uint64_t verison) {
@@ -36,6 +37,7 @@ public:
     ~BaseCache(){
         statistics();
         free(preloadBuffer);
+        free(decompressBuffer);
         for(const auto& blockEntry: cacheMap){
             free(blockEntry.second.block);
         }
@@ -67,8 +69,12 @@ public:
         uint64_t readSize = 0;
         {
             FileOperator basefile(pathBuffer, FileOpenType::Read);
-            readSize = basefile.read(preloadBuffer, PreloadSize);
+            uint64_t decompressSize = basefile.read(decompressBuffer, PreloadSize);
             basefile.releaseBufferedData();
+
+            readSize = ZSTD_decompress(preloadBuffer, PreloadSize, decompressBuffer, decompressSize);
+            assert(!ZSTD_isError(readSize));
+
             assert(basePos.length <= readSize);
         }
 
@@ -242,7 +248,8 @@ private:
     uint64_t currentVersion = 0;
     uint64_t selfHit = 0;
 
-    uint8_t* preloadBuffer;
+    uint8_t *preloadBuffer = nullptr;
+    uint8_t *decompressBuffer = nullptr;
 };
 
 #endif //MEGA_BASECACHE_H

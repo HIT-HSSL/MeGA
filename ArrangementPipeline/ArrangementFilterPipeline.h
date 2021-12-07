@@ -13,8 +13,7 @@
 #include "ArrangementWritePipeline.h"
 #include "../MetadataManager/MetadataManager.h"
 
-DEFINE_uint64(ArrangementReadBufferLength,
-              8388608, "ArrangementBufferLength");
+extern uint64_t ContainerSize;
 
 class ArrangementFilterPipeline{
 public:

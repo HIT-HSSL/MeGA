@@ -9,6 +9,7 @@
 #ifndef MEGA_RESTOREWRITEPIPELINE_H
 #define MEGA_RESTOREWRITEPIPELINE_H
 
+#include <zstd.h>
 
 #define ChunkBufferSize 65536
 
@@ -83,9 +84,9 @@ public:
     }
 
     ~RestoreWritePipeline() {
-        printf("write amplification: %f (%lu / %lu)\n", (float) extraIO / normalIO, extraIO, normalIO);
-        printf("restore write duration :%lu\n", duration);
-        printf("read time:%lu, decoding time:%lu\n", readTime, decodingTime);
+        printf("write amplification: %f (%lu / %lu Bytes)\n", (float) extraIO / normalIO, extraIO, normalIO);
+        printf("restore write duration :%lu us\n", duration);
+        printf("extra read time:%lu us, decoding time:%lu us\n", readTime, decodingTime);
         printf("total chunks:%lu, delta chunks:%lu\n", chunkCounter, deltaCounter);
         runningFlag = false;
         condition.notifyAll();
@@ -113,9 +114,6 @@ private:
         uint8_t *oriBuffer = (uint8_t *) malloc(ChunkBufferSize);
         usize_t oriSize = 0;
         struct timeval t0, t1, dt1, dt2, rt1, rt2;
-
-//        FileOperator ff("pos.log", FileOpenType::Write);
-//        char* buffer = (char*)malloc(1024);
 
         while (likely(runningFlag)) {
             {
@@ -157,37 +155,10 @@ private:
                 assert(r == 0);
                 pwrite(fd, oriBuffer, oriSize, restoreWriteTask->pos);
                 normalIO += oriSize;
-//                sprintf(buffer, "1, %lu, %lu, %lu\n", chunkCounter, restoreWriteTask->pos, restoreWriteTask->deltaLength);
-//                ff.write((uint8_t*)buffer, strlen(buffer));
             } else {
                 pwrite(fd, restoreWriteTask->buffer, restoreWriteTask->length, restoreWriteTask->pos);
                 normalIO += restoreWriteTask->length;
-//                sprintf(buffer, "0, %lu, %lu, %lu\n", chunkCounter, restoreWriteTask->pos, restoreWriteTask->length);
-//                ff.write((uint8_t*)buffer, strlen(buffer));
             }
-/*
-            if(restoreWriteTask->type){
-                deltaCounter++;
-                gettimeofday(&rt1, NULL);
-                pread(fd, deltaBuffer, restoreWriteTask->deltaLength, restoreWriteTask->pos);
-                gettimeofday(&rt2, NULL);
-                readTime += (rt2.tv_sec - rt1.tv_sec) * 1000000 + rt2.tv_usec - rt1.tv_usec;;
-
-                gettimeofday(&dt1, NULL);
-                int r = xd3_decode_memory(restoreWriteTask->buffer, restoreWriteTask->length, deltaBuffer,
-                                          restoreWriteTask->deltaLength, oriBuffer, &oriSize, ChunkBufferSize,
-                                          XD3_COMPLEVEL_1);
-                gettimeofday(&dt2, NULL);
-                decodingTime += (dt2.tv_sec - dt1.tv_sec) * 1000000 + dt2.tv_usec - dt1.tv_usec;
-                assert(r == 0);
-                assert(oriSize == restoreWriteTask->deltaLength);
-                pwrite(fd, oriBuffer, oriSize, restoreWriteTask->pos);
-
-            }else {
-                pwrite(fd, restoreWriteTask->buffer, restoreWriteTask->length, restoreWriteTask->pos);
-
-            }
-*/
 
             syncCounter++;
             if(syncCounter > 1024){

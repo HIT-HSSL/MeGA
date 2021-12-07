@@ -15,10 +15,12 @@
 extern std::string LogicFilePath;
 extern std::string ClassFilePath;
 extern std::string VersionFilePath;
+extern uint64_t ContainerSize;
+uint64_t ArrangementReadBufferLength = ContainerSize * 1.2;
 
-class ArrangementReadPipeline{
+class ArrangementReadPipeline {
 public:
-    ArrangementReadPipeline(): taskAmount(0), runningFlag(true), mutexLock(), condition(mutexLock){
+    ArrangementReadPipeline() : taskAmount(0), runningFlag(true), mutexLock(), condition(mutexLock) {
         worker = new std::thread(std::bind(&ArrangementReadPipeline::arrangementReadCallback, this));
     }
 
@@ -91,10 +93,18 @@ private:
             if (!classFile.ok()) {
                 break;
             }
-            uint8_t *buffer = (uint8_t *) malloc(FLAGS_ArrangementReadBufferLength);
-            uint64_t readSize = classFile.read(buffer, FLAGS_ArrangementReadBufferLength);
+            uint8_t *buffer = (uint8_t *) malloc(ArrangementReadBufferLength);
+            uint64_t readSize = classFile.read(buffer, ArrangementReadBufferLength);
+
+            uint8_t *decompressedBuffer = (uint8_t *) malloc(ArrangementReadBufferLength);
+            uint64_t decompressedSize = ZSTD_decompress(decompressedBuffer, ArrangementReadBufferLength, buffer,
+                                                        readSize);
+            assert(!ZSTD_isError(decompressedSize));
+            free(buffer);
+
             readAmount += readSize;
-            ArrangementFilterTask *arrangementFilterTask = new ArrangementFilterTask(buffer, readSize, classId,
+            ArrangementFilterTask *arrangementFilterTask = new ArrangementFilterTask(decompressedBuffer,
+                                                                                     decompressedSize, classId,
                                                                                      versionId);
             GlobalArrangementFilterPipelinePtr->addTask(arrangementFilterTask);
             remove(pathbuffer);
@@ -116,10 +126,18 @@ private:
             if (!classFile.ok()) {
                 break;
             }
-            uint8_t *buffer = (uint8_t *) malloc(FLAGS_ArrangementReadBufferLength);
-            uint64_t readSize = classFile.read(buffer, FLAGS_ArrangementReadBufferLength);
+            uint8_t *buffer = (uint8_t *) malloc(ArrangementReadBufferLength);
+            uint64_t readSize = classFile.read(buffer, ArrangementReadBufferLength);
+
+            uint8_t *decompressedBuffer = (uint8_t *) malloc(ArrangementReadBufferLength);
+            uint64_t decompressedSize = ZSTD_decompress(decompressedBuffer, ArrangementReadBufferLength, buffer,
+                                                        readSize);
+            assert(!ZSTD_isError(decompressedSize));
+            free(buffer);
+
             readAmount += readSize;
-            ArrangementFilterTask *arrangementFilterTask = new ArrangementFilterTask(buffer, readSize, classId,
+            ArrangementFilterTask *arrangementFilterTask = new ArrangementFilterTask(decompressedBuffer,
+                                                                                     decompressedSize, classId,
                                                                                      versionId);
             GlobalArrangementFilterPipelinePtr->addTask(arrangementFilterTask);
             remove(pathbuffer);
@@ -135,10 +153,18 @@ private:
             if (!classFile.ok()) {
                 break;
             }
-            uint8_t *buffer = (uint8_t *) malloc(FLAGS_ArrangementReadBufferLength);
-            uint64_t readSize = classFile.read(buffer, FLAGS_ArrangementReadBufferLength);
+            uint8_t *buffer = (uint8_t *) malloc(ArrangementReadBufferLength);
+            uint64_t readSize = classFile.read(buffer, ArrangementReadBufferLength);
+
+            uint8_t *decompressedBuffer = (uint8_t *) malloc(ArrangementReadBufferLength);
+            uint64_t decompressedSize = ZSTD_decompress(decompressedBuffer, ArrangementReadBufferLength, buffer,
+                                                        readSize);
+            assert(!ZSTD_isError(decompressedSize));
+            free(buffer);
+
             readAmount += readSize;
-            ArrangementFilterTask *arrangementFilterTask = new ArrangementFilterTask(buffer, readSize, classId,
+            ArrangementFilterTask *arrangementFilterTask = new ArrangementFilterTask(decompressedBuffer,
+                                                                                     decompressedSize, classId,
                                                                                      versionId);
             GlobalArrangementFilterPipelinePtr->addTask(arrangementFilterTask);
             remove(pathbuffer);

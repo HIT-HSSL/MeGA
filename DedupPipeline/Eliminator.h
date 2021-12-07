@@ -9,9 +9,6 @@
 #ifndef MEGA_ELIMINATOR_H
 #define MEGA_ELIMINATOR_H
 
-DEFINE_uint64(EliminateReadBuffer,
-67108864, "Read buffer size for eliminating old version");
-
 extern std::string LogicFilePath;
 extern std::string ClassFilePath;
 extern std::string VersionFilePath;

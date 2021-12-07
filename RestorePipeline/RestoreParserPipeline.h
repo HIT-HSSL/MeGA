@@ -15,8 +15,8 @@
 #include <thread>
 #include <assert.h>
 
-DEFINE_uint64(RestoreReadBufferLength,
-              8388608, "RestoreReadBufferLength");
+extern uint64_t ContainerSize;
+uint64_t RestoreReadBufferLength = ContainerSize * 1.2;
 
 struct BlockRestorePos {
     uint64_t offset;
@@ -107,7 +107,7 @@ private:
             uint64_t readoffset = 0;
             uint8_t *buffer = restoreParseTask->buffer;
 
-            readLength += restoreParseTask->length;
+            readLength += restoreParseTask->sizeAfterCompression;
 
             while (readoffset < leftLength) {
                 BlockHeader *pBH = (BlockHeader *) (buffer + readoffset);

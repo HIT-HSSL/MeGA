@@ -22,7 +22,7 @@ extern std::string HomePath;
 extern std::string ClassFileAppendPath;
 extern uint64_t RetentionTime;
 
-uint64_t ContainerSize = 4194304;
+uint64_t ContainerSize = 16 * 1024 * 1024;
 
 class ConfigReader {
 public:

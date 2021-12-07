@@ -132,11 +132,13 @@ struct RestoreParseTask {
     bool endFlag = false;
     uint64_t index = 0;
     uint64_t beginPos = 0;
+    uint64_t sizeAfterCompression = 0;
 
-    RestoreParseTask(uint8_t *buf, uint64_t len) {
+    RestoreParseTask(uint8_t *buf, uint64_t len, uint64_t sbc) {
         buffer = buf;
         length = len;
         beginPos = 0;
+        sizeAfterCompression = sbc;
     }
 
     RestoreParseTask(bool flag) {
