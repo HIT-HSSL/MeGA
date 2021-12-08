@@ -104,12 +104,13 @@ public:
     }
 
     int fdatasync() {
-        return ::fdatasync(file->_fileno);
+        fflush(file);
+        return ::fdatasync(fileno(file));
     }
 
     int fsync() {
         fflush(file);
-        return ::fsync(fileno(file));
+        return ::fdatasync(fileno(file));
         //return ::fsync(file->_fileno);
     }
 
