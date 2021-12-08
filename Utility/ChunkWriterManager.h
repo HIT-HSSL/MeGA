@@ -17,6 +17,8 @@ extern std::string VersionFilePath;
 extern uint64_t ContainerSize;
 uint64_t BufferCapacity = ContainerSize * 1.2;
 
+struct timeval ct0, ct1, wt0, wt1;
+
 struct WriteBuffer {
     uint64_t totalLength;
     uint64_t used;
@@ -70,27 +72,8 @@ public:
         return 0;
     }
 
-    int flush() {
-        size_t compressedSize = ZSTD_compress(writeBuffer.compressBuffer, BufferCapacity, writeBuffer.buffer,
-                                              writeBuffer.used, ZSTD_CLEVEL_DEFAULT);
-        sizeBeforeCompression += writeBuffer.used;
-        sizeAfterCompression += compressedSize;
-        assert(!ZSTD_isError(compressedSize));
-        writer->write(writeBuffer.compressBuffer, compressedSize);
-        writer->fsync();
-        writer->releaseBufferedData();
-        delete writer;
-        writer = nullptr;
-    }
-
-    int prepareNew() {
-        containerCounter++;
-        sprintf(pathBuffer, ClassFilePath.data(), currentVersion, currentVersion, containerCounter);
-        writer = new FileOperator(pathBuffer, FileOpenType::Write);
-        writeBuffer.clear();
-    }
-
     ~ChunkWriterManager() {
+        printf("[DedupWriter] Compression Time : %lu, Write Time : %lu\n", compressionTime, writeTime);
         printf("BeforeCompression:%lu, AfterCompression:%lu, CompressionReduce:%lu, CompressionRatio:%f\n",
                sizeBeforeCompression, sizeAfterCompression, sizeBeforeCompression - sizeAfterCompression,
                (float) sizeBeforeCompression / sizeAfterCompression);
@@ -101,6 +84,34 @@ public:
     }
 
 private:
+
+    int flush() {
+        gettimeofday(&ct0, NULL);
+        size_t compressedSize = ZSTD_compress(writeBuffer.compressBuffer, BufferCapacity, writeBuffer.buffer,
+                                              writeBuffer.used, ZSTD_CLEVEL_DEFAULT);
+        gettimeofday(&ct1, NULL);
+        compressionTime += (ct1.tv_sec - ct0.tv_sec) * 1000000 + ct1.tv_usec - ct0.tv_usec;
+
+        sizeBeforeCompression += writeBuffer.used;
+        sizeAfterCompression += compressedSize;
+        assert(!ZSTD_isError(compressedSize));
+
+        gettimeofday(&wt0, NULL);
+        writer->write(writeBuffer.compressBuffer, compressedSize);
+        writer->fsync();
+        writer->releaseBufferedData();
+        gettimeofday(&wt1, NULL);
+        writeTime += (wt1.tv_sec - wt0.tv_sec) * 1000000 + wt1.tv_usec - wt0.tv_usec;
+        delete writer;
+        writer = nullptr;
+    }
+
+    int prepareNew() {
+        containerCounter++;
+        sprintf(pathBuffer, ClassFilePath.data(), currentVersion, currentVersion, containerCounter);
+        writer = new FileOperator(pathBuffer, FileOpenType::Write);
+        writeBuffer.clear();
+    }
 
     FileOperator *writer = nullptr;
     WriteBuffer writeBuffer;
@@ -117,6 +128,8 @@ private:
 
     uint64_t sizeBeforeCompression = 0;
     uint64_t sizeAfterCompression = 0;
+
+    uint64_t compressionTime = 0, writeTime = 0;
 };
 
 #endif //MEGA_CHUNKWRITERMANAGER_H

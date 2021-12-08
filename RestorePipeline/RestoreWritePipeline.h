@@ -84,9 +84,10 @@ public:
     }
 
     ~RestoreWritePipeline() {
+        printf("[RestoreWrite] total :%lu us\n", duration);
+        printf("[RestoreWrite] extra read time:%lu us, decoding time:%lu us, write time:%lu\n", readTime, decodingTime,
+               writeTime);
         printf("write amplification: %f (%lu / %lu Bytes)\n", (float) extraIO / normalIO, extraIO, normalIO);
-        printf("restore write duration :%lu us\n", duration);
-        printf("extra read time:%lu us, decoding time:%lu us, write time:%lu\n", readTime, decodingTime, writeTime);
         printf("total chunks:%lu, delta chunks:%lu\n", chunkCounter, deltaCounter);
         runningFlag = false;
         condition.notifyAll();

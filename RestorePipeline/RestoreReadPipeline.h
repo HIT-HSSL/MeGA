@@ -19,6 +19,8 @@ struct ReadPos {
     uint64_t length;
 };
 
+struct timeval t0, t1, rt0, rt1, dt0, dt1;
+
 class RestoreReadPipeline {
 public:
     RestoreReadPipeline() : taskAmount(0), runningFlag(true), mutexLock(),
@@ -34,7 +36,8 @@ public:
     }
 
     ~RestoreReadPipeline() {
-        printf("restore read duration :%lu\n", duration);
+        printf("[RestoreRead] total: %lu, read time:%lu, decompression time:%lu\n", duration, readTime,
+               decompressionTime);
         runningFlag = false;
         condition.notifyAll();
         worker->join();
@@ -44,8 +47,6 @@ private:
     void restoreReadCallback() {
         pthread_setname_np(pthread_self(), "RReading");
         RestoreTask *restoreTask;
-
-        struct timeval t0, t1;
 
         while (likely(runningFlag)) {
             {
@@ -118,11 +119,17 @@ private:
                 sprintf(filePath, VersionFilePath.data(), i, versionId, j);
                 FileOperator archivedReader(filePath, FileOpenType::Read);
                 uint8_t *readBuffer = (uint8_t *) malloc(RestoreReadBufferLength);
+                gettimeofday(&rt0, NULL);
                 uint64_t readLength = archivedReader.read(readBuffer, RestoreReadBufferLength);
+                gettimeofday(&rt1, NULL);
+                readTime += (rt1.tv_sec - rt0.tv_sec) * 1000000 + rt1.tv_usec - rt0.tv_usec;;
 
                 uint8_t *decompressBuffer = (uint8_t *) malloc(RestoreReadBufferLength);
+                gettimeofday(&dt0, NULL);
                 size_t decompressedSize = ZSTD_decompress(decompressBuffer, RestoreReadBufferLength, readBuffer,
                                                           readLength);
+                gettimeofday(&dt1, NULL);
+                decompressionTime += (dt1.tv_sec - dt0.tv_sec) * 1000000 + dt1.tv_usec - dt0.tv_usec;;
                 assert(!ZSTD_isError(decompressedSize));
                 free(readBuffer);
 
@@ -152,11 +159,17 @@ private:
             sprintf(filePath, ClassFilePath.data(), classId, column, j);
             FileOperator activeReader(filePath, FileOpenType::Read);
             uint8_t *readBuffer = (uint8_t *) malloc(RestoreReadBufferLength);
+            gettimeofday(&rt0, NULL);
             uint64_t readLength = activeReader.read(readBuffer, RestoreReadBufferLength);
+            gettimeofday(&rt1, NULL);
+            readTime += (rt1.tv_sec - rt0.tv_sec) * 1000000 + rt1.tv_usec - rt0.tv_usec;;
 
             uint8_t *decompressBuffer = (uint8_t *) malloc(RestoreReadBufferLength);
+            gettimeofday(&dt0, NULL);
             size_t decompressedSize = ZSTD_decompress(decompressBuffer, RestoreReadBufferLength, readBuffer,
                                                       readLength);
+            gettimeofday(&dt1, NULL);
+            decompressionTime += (dt1.tv_sec - dt0.tv_sec) * 1000000 + dt1.tv_usec - dt0.tv_usec;;
             assert(!ZSTD_isError(decompressedSize));
             free(readBuffer);
 
@@ -184,11 +197,17 @@ private:
             sprintf(filePath, ClassFileAppendPath.data(), classId, column, j);
             FileOperator activeReader(filePath, FileOpenType::Read);
             uint8_t *readBuffer = (uint8_t *) malloc(RestoreReadBufferLength);
+            gettimeofday(&rt0, NULL);
             uint64_t readLength = activeReader.read(readBuffer, RestoreReadBufferLength);
+            gettimeofday(&rt1, NULL);
+            readTime += (rt1.tv_sec - rt0.tv_sec) * 1000000 + rt1.tv_usec - rt0.tv_usec;;
 
             uint8_t *decompressBuffer = (uint8_t *) malloc(RestoreReadBufferLength);
+            gettimeofday(&dt0, NULL);
             size_t decompressedSize = ZSTD_decompress(decompressBuffer, RestoreReadBufferLength, readBuffer,
                                                       readLength);
+            gettimeofday(&dt1, NULL);
+            decompressionTime += (dt1.tv_sec - dt0.tv_sec) * 1000000 + dt1.tv_usec - dt0.tv_usec;;
             assert(!ZSTD_isError(decompressedSize));
             free(readBuffer);
 
@@ -206,6 +225,8 @@ private:
     std::list<RestoreTask *> taskList;
     MutexLock mutexLock;
     Condition condition;
+
+    uint64_t readTime = 0, decompressionTime = 0;
 
     uint64_t duration = 0;
 };

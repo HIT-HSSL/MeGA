@@ -44,13 +44,14 @@ public:
     }
 
     void getStatistics() {
-        printf("Write duration:%lu\n", duration);
+        printf("[DedupWrite] total : %lu\n", duration);
     }
 
 private:
     void writeFileCallback() {
         pthread_setname_np(pthread_self(), "Writing Thread");
         struct timeval t0, t1;
+        struct timeval initTime, endTime;
         bool newVersionFlag = true;
 
         BlockHeader blockHeader;
@@ -74,6 +75,7 @@ private:
             if (chunkWriterManager == nullptr) {
                 chunkWriterManager = new ChunkWriterManager(TotalVersion);
                 duration = 0;
+                gettimeofday(&initTime, NULL);
             }
 
             for (auto &writeTask : taskList) {
@@ -136,6 +138,10 @@ private:
                     chunkWriterManager = nullptr;
                     gettimeofday(&t1, NULL);
                     duration += (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
+
+                    gettimeofday(&endTime, NULL);
+                    printf("[CheckPoint:write] InitTime:%lu, EndTime:%lu\n",
+                           initTime.tv_sec * 1000000 + initTime.tv_usec, endTime.tv_sec * 1000000 + endTime.tv_usec);
 
                     writeTask.countdownLatch->countDown();
                     free(oriBuffer);

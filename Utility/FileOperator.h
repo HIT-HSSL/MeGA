@@ -108,7 +108,8 @@ public:
     }
 
     int fsync() {
-        return fflush(file);
+        fflush(file);
+        return ::fsync(fileno(file));
         //return ::fsync(file->_fileno);
     }
 

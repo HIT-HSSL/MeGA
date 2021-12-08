@@ -37,7 +37,7 @@ public:
     }
 
     ~RestoreParserPipeline() {
-        printf("restore parser duration :%lu\n", duration);
+        printf("[RestoreParser] total :%lu\n", duration);
         runningFlag = false;
         condition.notifyAll();
         worker->join();

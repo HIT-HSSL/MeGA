@@ -54,7 +54,7 @@ public:
     }
 
     void getStatistics() {
-        printf("Chunking Duration:%lu\n", duration);
+        printf("[DedupChunking] total : %lu\n", duration);
     }
 
     ~ChunkingPipeline() {
@@ -96,6 +96,7 @@ private:
 
         struct timeval t1, t0;
         struct timeval ct0, ct1;
+        struct timeval initTime, endTime;
 
         while (runningFlag) {
             {
@@ -117,6 +118,7 @@ private:
                 newFileFlag = false;
                 flag = false;
                 duration = 0;
+                gettimeofday(&initTime, NULL);
             }
             uint64_t end = chunkTask.end;
 
@@ -159,6 +161,9 @@ private:
                 printf("ChunkingPipeline finish\n");
                 newFileFlag = true;
                 dedupTask.countdownLatch = nullptr;
+                gettimeofday(&endTime, NULL);
+                printf("[CheckPoint:chunking] InitTime:%lu, EndTime:%lu\n",
+                       initTime.tv_sec * 1000000 + initTime.tv_usec, endTime.tv_sec * 1000000 + endTime.tv_usec);
             }
             gettimeofday(&t1, NULL);
             duration += (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;

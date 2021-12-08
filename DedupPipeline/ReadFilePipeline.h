@@ -38,7 +38,7 @@ public:
     }
 
     void getStatistics() {
-        printf("Reading Duration : %lu\n", duration);
+        printf("[DedupReading] total : %lu\n", duration);
     }
 
 private:
@@ -87,6 +87,8 @@ private:
             cd->countDown();
             gettimeofday(&t1, NULL);
             duration += (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
+            printf("[CheckPoint:reading] InitTime:%lu, EndTime:%lu\n", t0.tv_sec * 1000000 + t0.tv_usec,
+                   t1.tv_sec * 1000000 + t1.tv_usec);
 
             printf("ReadPipeline finish\n");
             printf("Total read Size:%lu, speed : %fMB/s\n", readOffset,

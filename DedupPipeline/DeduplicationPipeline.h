@@ -27,6 +27,7 @@ DEFINE_uint64(CappingThreshold,
               10, "CappingThreshold");
 
 extern bool DeltaSwitch;
+struct timeval initTime, endTime;
 
 class DeduplicationPipeline {
 public:
@@ -54,14 +55,13 @@ public:
     }
 
     void getStatistics() {
-        printf("Deduplicating Duration : %lu\n", duration);
-        printf("Delta duration : %lu\n", deltaTime);
-        printf("Unique:%lu, Internal:%lu, Adjacent:%lu, Delta:%lu\n", chunkCounter[0], chunkCounter[1], chunkCounter[2],
-               chunkCounter[3]);
+        printf("[DedupDeduplicating] total : %lu, delta encoding : %lu\n", duration, deltaTime);
+        printf("Unique:%lu, Internal:%lu, Adjacent:%lu, Delta:%lu, Reject:%lu\n", chunkCounter[0], chunkCounter[1],
+               chunkCounter[2],
+               chunkCounter[3], cappingReject);
         printf("xdeltaError:%lu\n", xdeltaError);
         printf("Total Length : %lu, AfterDedup : %lu, AfterDelta: %lu, DedupRatio : %f, DeltaRatio : %f\n",
                totalLength, afterDedup, afterDelta, (float) totalLength / afterDedup, (float) totalLength / afterDelta);
-        printf("Capping Reject:%lu\n", cappingReject);
     }
 
 
@@ -92,6 +92,7 @@ private:
                     chunkCounter[i] = 0;
                 }
                 newVersionFlag = false;
+                gettimeofday(&initTime, NULL);
                 duration = 0;
                 if(!taskList.empty()){
                     baseCache.setCurrentVersion(taskList.begin()->fileID);
@@ -328,6 +329,9 @@ private:
                 entry.countdownLatch->countDown();
                 //GlobalMetadataManagerPtr->tableRolling();
                 newVersionFlag = true;
+                gettimeofday(&endTime, NULL);
+                printf("[CheckPoint:dedup] InitTime:%lu, EndTime:%lu\n", initTime.tv_sec * 1000000 + initTime.tv_usec,
+                       endTime.tv_sec * 1000000 + endTime.tv_usec);
 
                 GlobalWriteFilePipelinePtr->addTask(writeTask);
             } else {

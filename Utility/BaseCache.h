@@ -44,14 +44,13 @@ public:
     }
 
     void statistics(){
-        printf("block cache:\n");
-        printf("total size:%lu, items:%lu\n", totalSize, items);
-        printf("cache write:%lu, cache read:%lu\n", write, read);
-        printf("hit rate: %f(%lu/%lu)\n", float(success)/access, success, access);
+        printf("[BlockCache]\n");
         printf("cache miss %lu times, total loading time %lu us, average %f us\n", access - success, loadingTime,
                (float) loadingTime / (access - success));
+        printf("hit rate: %f(%lu/%lu)\n", float(success) / access, success, access);
+        printf("cache write:%lu, cache read:%lu, prefetching size : %lu\n", write, read, prefetching);
+        printf("total size:%lu, items:%lu\n", totalSize, items);
         printf("self hit:%lu\n", selfHit);
-        printf("cache prefetching size:%lu\n", prefetching);
     }
 
     void loadBaseChunks(const BasePos& basePos) {

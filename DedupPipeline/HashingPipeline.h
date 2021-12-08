@@ -39,7 +39,7 @@ public:
     }
 
     void getStatistics() {
-        printf("Hashing Duration : %lu\n", duration);
+        printf("[DedupHashing] total : %lu\n", duration);
     }
 
 private:
@@ -48,6 +48,8 @@ private:
         mh_sha1_ctx ctx;
         //SHA_CTX ctx;
         struct timeval t0, t1, t2;
+        struct timeval initTime, endTime;
+
         while (runningFlag) {
             {
                 MutexLockGuard mutexLockGuard(mutexLock);
@@ -62,6 +64,7 @@ private:
             if(unlikely(newVersion)){
                 duration = 0;
                 newVersion = false;
+                gettimeofday(&initTime, NULL);
             }
 
             gettimeofday(&t0, NULL);
@@ -81,6 +84,9 @@ private:
                     printf("HashingPipeline finish\n");
                     dedupTask.countdownLatch->countDown();
                     newVersion = true;
+                    gettimeofday(&endTime, NULL);
+                    printf("[CheckPoint:hashing] InitTime:%lu, EndTime:%lu\n",
+                           initTime.tv_sec * 1000000 + initTime.tv_usec, endTime.tv_sec * 1000000 + endTime.tv_usec);
                 }
                 GlobalDeduplicationPipelinePtr->addTask(dedupTask);
             }

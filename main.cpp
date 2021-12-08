@@ -153,6 +153,8 @@ int main(int argc, char **argv) {
 
             gettimeofday(&t1, NULL);
             uint64_t singleDedup = (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
+            printf("[CheckPoint:main] InitTime:%lu, EndTime:%lu\n", t0.tv_sec * 1000000 + t0.tv_usec,
+                   t1.tv_sec * 1000000 + t1.tv_usec);
             dedupDuration += singleDedup;
             printf("Backup duration:%lu us, Backup Size:%lu, Speed:%fMB/s\n", singleDedup, taskLength,
                    (float) taskLength / singleDedup);
@@ -190,9 +192,9 @@ int main(int argc, char **argv) {
         }
 
         printf("==============================================\n");
-        printf("writing duration:%lu, arrange duration:%lu\n", dedupDuration, arrDuration);
-        printf("Total deduplication duration:%lu us, Total Size:%lu, Speed:%fMB/s\n", dedupDuration, taskLength,
-               (float) taskLength / dedupDuration);
+        printf("Total deduplication duration:%lu us, Total Size:%lu, Speed:%fMB/s, arrange duration:%lu\n",
+               dedupDuration, taskLength,
+               (float) taskLength / dedupDuration, arrDuration);
         GlobalDeduplicationPipelinePtr->getStatistics();
         printf("done\n");
         printf("==============================================\n");
