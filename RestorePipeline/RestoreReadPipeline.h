@@ -77,27 +77,6 @@ private:
                 printf("append LC-group # %lu is optional\n", baseCategory);
             }else{
                 assert(0); // todo: do not consider fall behind currently
-                //processing when arrangement falls behind.
-                printf("Arrangement falls %lu versions behind\n", restoreTask->fallBehind);
-                // read the last version in previous OPT layout
-                printf("Load the last version in existing OPT layout..\n");
-                for (uint64_t i = restoreTask->targetVersion; i <= restoreTask->maxVersion - 1 - restoreTask->fallBehind; i++) {
-                    volumeList.push_back(i);
-                    printf("version # %lu is required\n", i);
-                }
-                baseClass = (restoreTask->maxVersion - 1 - restoreTask->fallBehind) * (restoreTask->maxVersion - restoreTask->fallBehind) / 2 + 1;
-                for (uint64_t i = baseClass; i < baseClass + restoreTask->targetVersion - restoreTask->fallBehind; i++) {
-                    categoryList.push_back(i);
-                    printf("category # %lu is required\n", i);
-                }
-                printf("append category # %lu is optional\n", baseClass);
-                // read unique chunks of following versions.
-                printf("The new categories of following versions..\n");
-                for (uint64_t i = restoreTask->maxVersion - restoreTask->fallBehind + 1;
-                     i <= restoreTask->maxVersion; i++) {
-                    categoryList.push_back(i * (i + 1) / 2);
-                    printf("category # %lu is required\n", i * (i + 1) / 2);
-                }
             }
 
             for (auto &item : volumeList) {

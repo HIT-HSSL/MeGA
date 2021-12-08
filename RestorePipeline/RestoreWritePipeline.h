@@ -86,7 +86,7 @@ public:
     ~RestoreWritePipeline() {
         printf("write amplification: %f (%lu / %lu Bytes)\n", (float) extraIO / normalIO, extraIO, normalIO);
         printf("restore write duration :%lu us\n", duration);
-        printf("extra read time:%lu us, decoding time:%lu us\n", readTime, decodingTime);
+        printf("extra read time:%lu us, decoding time:%lu us, write time:%lu\n", readTime, decodingTime, writeTime);
         printf("total chunks:%lu, delta chunks:%lu\n", chunkCounter, deltaCounter);
         runningFlag = false;
         condition.notifyAll();
@@ -113,7 +113,7 @@ private:
         uint8_t *deltaBuffer = (uint8_t *) malloc(ChunkBufferSize);
         uint8_t *oriBuffer = (uint8_t *) malloc(ChunkBufferSize);
         usize_t oriSize = 0;
-        struct timeval t0, t1, dt1, dt2, rt1, rt2;
+        struct timeval t0, t1, dt1, dt2, rt1, rt2, wt1, wt2;
 
         while (likely(runningFlag)) {
             {
@@ -151,12 +151,21 @@ private:
                                           restoreWriteTask->length,
                                           oriBuffer, &oriSize, ChunkBufferSize, XD3_COMPLEVEL_1);
                 gettimeofday(&dt2, NULL);
+                deltaCounter++;
                 decodingTime += (dt2.tv_sec - dt1.tv_sec) * 1000000 + dt2.tv_usec - dt1.tv_usec;
                 assert(r == 0);
+                gettimeofday(&wt1, NULL);
                 pwrite(fd, oriBuffer, oriSize, restoreWriteTask->pos);
+                gettimeofday(&wt2, NULL);
+                writeTime += (wt2.tv_sec - wt1.tv_sec) * 1000000 + wt2.tv_usec - wt1.tv_usec;
                 normalIO += oriSize;
             } else {
+                gettimeofday(&wt1, NULL);
+//                fileOperator->seek(restoreWriteTask->pos);
+//                fileOperator->write(restoreWriteTask->buffer, restoreWriteTask->length);
                 pwrite(fd, restoreWriteTask->buffer, restoreWriteTask->length, restoreWriteTask->pos);
+                gettimeofday(&wt2, NULL);
+                writeTime += (wt2.tv_sec - wt1.tv_sec) * 1000000 + wt2.tv_usec - wt1.tv_usec;
                 normalIO += restoreWriteTask->length;
             }
 
@@ -189,6 +198,7 @@ private:
 
     uint64_t duration = 0;
     uint64_t decodingTime = 0;
+    uint64_t writeTime = 0;
     uint64_t readTime = 0;
 
     uint64_t syncCounter = 0;
