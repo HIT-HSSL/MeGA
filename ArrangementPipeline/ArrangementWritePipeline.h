@@ -62,9 +62,6 @@ private:
             }
 
             if(arrangementWriteTask->startFlag){
-                VolumeFileHeader versionFileHeader = {
-                        .offsetCount = arrangementWriteTask->arrangementVersion
-                };
                 currentVersion = arrangementWriteTask->arrangementVersion;
                 classIter = 0;
 
@@ -108,7 +105,7 @@ private:
 
                     sprintf(pathBuffer, ClassFilePath.data(), classIter + 1, currentVersion + 1, activeCID);
                     activeFileOperator = new FileOperator(pathBuffer, FileOpenType::Write);
-                    archivedBuffer.clear();
+                    activeBuffer.clear();
                 }
                 continue;
             } else if (arrangementWriteTask->finalEndFlag) {

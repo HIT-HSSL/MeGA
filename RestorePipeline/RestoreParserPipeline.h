@@ -138,7 +138,7 @@ private:
                         GlobalRestoreWritePipelinePtr->addTask(restoreWriteTask);
                     }
                 } else {
-                    assert(1);
+                    assert(0);
                 }
             }
 
