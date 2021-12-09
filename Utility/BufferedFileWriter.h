@@ -54,16 +54,6 @@ private:
         }
     }
 
-    int flush_old() {
-        fileOperator->write(writeBuffer, bufferSize - writeBufferAvailable);
-        writeBufferAvailable = bufferSize;
-        counter++;
-        if (counter >= syncThreshold) {
-            fileOperator->fdatasync();
-            counter = 0;
-        }
-    }
-
     uint64_t bufferSize;
     uint8_t *writeBuffer;
     int writeBufferAvailable;

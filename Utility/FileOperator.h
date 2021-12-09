@@ -111,7 +111,6 @@ public:
     int fsync() {
         fflush(file);
         return ::fdatasync(fileno(file));
-        //return ::fsync(file->_fileno);
     }
 
     int getFd() {

@@ -57,27 +57,46 @@ public:
         gettimeofday(&t0, NULL);
         char pathBuffer[256];
 
+        uint64_t lcs, lce, cid;
+        bool currentMatch = false;
+
         if (basePos.CategoryOrder == currentVersion) {
-            sprintf(pathBuffer, ClassFilePath.data(), basePos.CategoryOrder, currentVersion, basePos.cid);
+            lcs = basePos.CategoryOrder;
+            lce = currentVersion;
+            cid = basePos.cid;
+            //sprintf(pathBuffer, ClassFilePath.data(), basePos.CategoryOrder, currentVersion, basePos.cid);
+            currentMatch = true;
             selfHit++;
         } else if (basePos.CategoryOrder) {
-            sprintf(pathBuffer, ClassFilePath.data(), basePos.CategoryOrder, currentVersion - 1, basePos.cid);
+            lcs = basePos.CategoryOrder;
+            lce = currentVersion - 1;
+            cid = basePos.cid;
+            //sprintf(pathBuffer, ClassFilePath.data(), basePos.CategoryOrder, currentVersion - 1, basePos.cid);
         } else {
-            sprintf(pathBuffer, ClassFileAppendPath.data(), 1, currentVersion - 1, basePos.cid);
+            lcs = 1;
+            lce = currentVersion - 1;
+            cid = basePos.cid;
+            //sprintf(pathBuffer, ClassFileAppendPath.data(), 1, currentVersion - 1, basePos.cid);
         }
 
+        uint64_t decompressSize;
         uint64_t readSize = 0;
-        {
-            FileOperator basefile(pathBuffer, FileOpenType::Read);
-            uint64_t decompressSize = basefile.read(decompressBuffer, PreloadSize);
-            basefile.releaseBufferedData();
-            prefetching += decompressSize;
-
-            readSize = ZSTD_decompress(preloadBuffer, PreloadSize, decompressBuffer, decompressSize);
-            assert(!ZSTD_isError(readSize));
-
-            assert(basePos.length <= readSize);
+        int r = 0;
+        if (currentMatch) {
+            r = GlobalWriteFilePipelinePtr->getContainer(lcs, lce, cid, decompressBuffer, &decompressSize);
+            currentMatch = false;
         }
+        if (!r) {
+            sprintf(pathBuffer, ClassFilePath.data(), lcs, lce, cid);
+            FileOperator basefile(pathBuffer, FileOpenType::Read);
+            decompressSize = basefile.read(decompressBuffer, PreloadSize);
+            basefile.releaseBufferedData();
+        }
+        prefetching += decompressSize;
+
+        readSize = ZSTD_decompress(preloadBuffer, PreloadSize, decompressBuffer, decompressSize);
+        assert(!ZSTD_isError(readSize));
+        assert(basePos.length <= readSize);
 
         BlockHeader *headPtr;
 

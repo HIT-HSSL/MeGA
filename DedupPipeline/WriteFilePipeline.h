@@ -12,7 +12,7 @@
 
 #include "jemalloc/jemalloc.h"
 #include "../MetadataManager/MetadataManager.h"
-#include "../Utility/ChunkWriterManager.h"
+#include "../Utility/ContainerConstructor.h"
 #include "../Utility/Likely.h"
 #include "../Utility/BufferedFileWriter.h"
 #include <zstd.h>
@@ -36,6 +36,10 @@ public:
         condition.notify();
     }
 
+    int getContainer(uint64_t s, uint64_t e, uint64_t c, uint8_t *buffer, uint64_t *length) {
+        return chunkWriterManager->getContainer(s, e, c, buffer, length);
+    }
+
     ~WriteFilePipeline() {
         runningFlag = false;
         condition.notifyAll();
@@ -55,7 +59,6 @@ private:
         bool newVersionFlag = true;
 
         BlockHeader blockHeader;
-        ChunkWriterManager *chunkWriterManager = nullptr;
         uint64_t recipeLength = 0;
 
         while (runningFlag) {
@@ -73,7 +76,7 @@ private:
             gettimeofday(&t0, NULL);
 
             if (chunkWriterManager == nullptr) {
-                chunkWriterManager = new ChunkWriterManager(TotalVersion);
+                chunkWriterManager = new ContainerConstructor(TotalVersion);
                 duration = 0;
                 gettimeofday(&initTime, NULL);
             }
@@ -167,6 +170,7 @@ private:
     Condition condition;
     uint64_t duration = 0;
     uint8_t *oriBuffer;
+    ContainerConstructor *chunkWriterManager = nullptr;
 };
 
 static WriteFilePipeline *GlobalWriteFilePipelinePtr;
