@@ -105,6 +105,7 @@ public:
             if (preLoadPos >= readSize) break;
             leftLength = readSize - preLoadPos;
         }
+        assert(preLoadPos == readSize);
         gettimeofday(&t1, NULL);
         loadingTime += (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
     }

@@ -57,8 +57,7 @@ public:
     void getStatistics() {
         printf("[DedupDeduplicating] total : %lu, delta encoding : %lu\n", duration, deltaTime);
         printf("Unique:%lu, Internal:%lu, Adjacent:%lu, Delta:%lu, Reject:%lu\n", chunkCounter[0], chunkCounter[1],
-               chunkCounter[2],
-               chunkCounter[3], cappingReject);
+               chunkCounter[2], chunkCounter[3], cappingReject);
         printf("xdeltaError:%lu\n", xdeltaError);
         printf("Total Length : %lu, AfterDedup : %lu, AfterDelta: %lu, DedupRatio : %f, DeltaRatio : %f\n",
                totalLength, afterDedup, afterDelta, (float) totalLength / afterDedup, (float) totalLength / afterDelta);
@@ -215,7 +214,6 @@ private:
 
             if (lookupResult == LookupResult::Unique) {
                 afterDedup += entry.length;
-                chunkCounter[(int) lookupResult]++;
                 LookupResult similarLookupResult = LookupResult::Dissimilar;
                 if (DeltaSwitch) {
                     similarLookupResult = GlobalMetadataManagerPtr->similarityLookupSimple(entry.similarityFeatures,
@@ -238,7 +236,7 @@ private:
 
                     r = xd3_encode_memory(entry.buffer + entry.pos, entry.length,
                                           tempBlockEntry.block, tempBlockEntry.length, tempBuffer, &deltaSize,
-                                          entry.length, XD3_COMPLEVEL_1 | XD3_SEC_NOALL | XD3_NOCOMPRESS);
+                                          entry.length, XD3_COMPLEVEL_1 | XD3_NOCOMPRESS);
                     gettimeofday(&dt2, NULL);
                     deltaTime += (dt2.tv_sec - dt1.tv_sec) * 1000000 + dt2.tv_usec - dt1.tv_usec;
 
@@ -279,6 +277,7 @@ private:
                     }
                 } else {
                     unique:
+                    chunkCounter[(int) LookupResult::Unique]++;
                     if (entry.deltaReject) cappingReject++;
                     writeTask.type = (int) LookupResult::Unique;
                     GlobalMetadataManagerPtr->uniqueAddRecord(entry.fp, entry.fileID, entry.length);

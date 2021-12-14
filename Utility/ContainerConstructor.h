@@ -89,7 +89,7 @@ public:
             if (item->cid == c) {
                 memcpy(buffer, item->buffer, item->length);
                 *length = item->length;
-                return 2;
+                return 1;
             }
         }
         return 0;
@@ -178,7 +178,7 @@ private:
 
             sprintf(pathBuffer, ClassFilePath.data(), task->lcs, task->lce, task->cid);
             FileOperator *writer = new FileOperator(pathBuffer, FileOpenType::Write);
-            writer->write(task->buffer, task->length);
+            writer->write(task->compressed, task->compressedLength);
             writer->fsync();
             writer->releaseBufferedData();
             delete writer;
@@ -267,9 +267,8 @@ private:
             sizeBeforeCompression += task->length;
             sizeAfterCompression += compressedSize;
 
-            free(task->buffer);
-            task->buffer = compressBuffer;
-            task->length = compressedSize;
+            task->compressed = compressBuffer;
+            task->compressedLength = compressedSize;
 
             offlineWriter.addTask(task);
         }
