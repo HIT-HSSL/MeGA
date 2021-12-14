@@ -11,6 +11,7 @@
 
 #include "Likely.h"
 #include <zstd.h>
+#include <atomic>
 
 extern std::string ClassFilePath;
 extern std::string VersionFilePath;
@@ -61,12 +62,84 @@ struct Container {
     uint64_t lcs, lce, cid;
     uint8_t *buffer;
     uint64_t length;
-    bool compressTag;
+    uint8_t *compressed;
+    uint64_t compressedLength;
+    bool written = false;
+};
+
+class OfflineReleaser {
+public:
+    OfflineReleaser() : runningFlag(true), taskAmount(0), mutexLock(), condition(mutexLock) {
+        worker = new std::thread(std::bind(&OfflineReleaser::ReleaserCallback, this));
+    }
+
+    int addTask(Container *con) {
+        MutexLockGuard mutexLockGuard(mutexLock);
+        taskList.push_back(con);
+        taskAmount++;
+    }
+
+    int notify() {
+        condition.notify();
+    }
+
+    int getContainer(uint64_t c, uint8_t *buffer, uint64_t *length) {
+        MutexLockGuard mutexLockGuard(mutexLock);
+        for (auto item: taskList) {
+            if (item->cid == c) {
+                memcpy(buffer, item->buffer, item->length);
+                *length = item->length;
+                return 2;
+            }
+        }
+        return 0;
+    }
+
+    ~OfflineReleaser() {
+        addTask(NULL);
+        notify();
+        worker->join();
+    }
+
+private:
+    void ReleaserCallback() {
+        pthread_setname_np(pthread_self(), "Releaser");
+        Container *task;
+        while (likely(runningFlag)) {
+            {
+                MutexLockGuard mutexLockGuard(mutexLock);
+                auto iter = taskList.begin();
+                while (!taskAmount || (*iter != NULL && !(*iter)->written)) {
+                    condition.wait();
+                    iter = taskList.begin();
+                }
+                taskAmount--;
+                task = taskList.front();
+                taskList.pop_front();
+            }
+
+            if (task == NULL) {
+                break;
+            }
+
+            free(task->buffer);
+            free(task->compressed);
+            delete task;
+        }
+    }
+
+    std::thread *worker;
+    bool runningFlag;
+    uint64_t taskAmount;
+    std::list<Container *> taskList;
+    MutexLock mutexLock;
+    Condition condition;
 };
 
 class OfflineWriter {
 public:
-    OfflineWriter() : runningFlag(true), taskAmount(0), mutexLock(), condition(mutexLock) {
+    OfflineWriter(OfflineReleaser *offRls) : runningFlag(true), taskAmount(0), mutexLock(), condition(mutexLock),
+                                             offlineReleaser(offRls) {
         worker = new std::thread(std::bind(&OfflineWriter::fileFlusherCallback, this));
     }
 
@@ -75,22 +148,6 @@ public:
         taskList.push_back(con);
         taskAmount++;
         condition.notify();
-    }
-
-    int getContainer(uint64_t c, uint8_t *buffer, uint64_t *length) {
-        if (c < last) {
-            return 0;
-        } else {
-            MutexLockGuard mutexLockGuard(mutexLock);
-            for (auto item: taskList) {
-                if (item->cid == c) {
-                    memcpy(buffer, item->buffer, item->length);
-                    *length = item->length;
-                    return 2;
-                }
-            }
-        }
-        return 0;
     }
 
     ~OfflineWriter() {
@@ -123,10 +180,12 @@ private:
             FileOperator *writer = new FileOperator(pathBuffer, FileOpenType::Write);
             writer->write(task->buffer, task->length);
             writer->fsync();
-            last = task->cid;
+            writer->releaseBufferedData();
             delete writer;
-            free(task->buffer);
-            delete task;
+
+            task->written = true;
+            offlineReleaser->notify();
+
         }
     }
 
@@ -137,12 +196,16 @@ private:
     std::list<Container *> taskList;
     MutexLock mutexLock;
     Condition condition;
-    uint64_t last = 0;
+    OfflineReleaser *offlineReleaser;
 };
 
 class OfflineCompressor {
 public:
-    OfflineCompressor() : runningFlag(true), taskAmount(0), mutexLock(), condition(mutexLock) {
+    OfflineCompressor(OfflineReleaser *offlineReleaser) : runningFlag(true), taskAmount(0), mutexLock(),
+                                                          condition(mutexLock),
+                                                          offlineWriter(offlineReleaser) {
+        sizeBeforeCompression = 0;
+        sizeAfterCompression = 0;
         worker1 = new std::thread(std::bind(&OfflineCompressor::compressCallback, this));
         worker2 = new std::thread(std::bind(&OfflineCompressor::compressCallback, this));
         worker3 = new std::thread(std::bind(&OfflineCompressor::compressCallback, this));
@@ -156,14 +219,11 @@ public:
         condition.notify();
     }
 
-    int getContainer(uint64_t c, uint8_t *buffer, uint64_t *length) {
-        return offlineWriter.getContainer(c, buffer, length);
-    }
-
     ~OfflineCompressor() {
         printf("[ContainerConstructor] Compression Time : %lu\n", compressionTime);
         printf("BeforeCompression:%lu, AfterCompression:%lu, CompressionReduce:%lu, CompressionRatio:%f\n",
-               sizeBeforeCompression, sizeAfterCompression, sizeBeforeCompression - sizeAfterCompression,
+               (uint64_t) sizeBeforeCompression, (uint64_t) sizeAfterCompression,
+               sizeBeforeCompression - sizeAfterCompression,
                (float) sizeBeforeCompression / sizeAfterCompression);
         addTask(NULL);
         addTask(NULL);
@@ -210,7 +270,6 @@ private:
             free(task->buffer);
             task->buffer = compressBuffer;
             task->length = compressedSize;
-            task->compressTag = true;
 
             offlineWriter.addTask(task);
         }
@@ -226,8 +285,8 @@ private:
     MutexLock mutexLock;
     Condition condition;
 
-    uint64_t sizeBeforeCompression = 0;
-    uint64_t sizeAfterCompression = 0;
+    std::atomic<uint64_t> sizeBeforeCompression;
+    std::atomic<uint64_t> sizeAfterCompression;
 
     uint64_t compressionTime = 0;
 
@@ -236,7 +295,8 @@ private:
 
 class ContainerConstructor {
 public:
-    ContainerConstructor(uint64_t cv) : runningFlag(true), taskAmount(0), mutexLock(), condition(mutexLock) {
+    ContainerConstructor(uint64_t cv) : runningFlag(true), taskAmount(0), mutexLock(), condition(mutexLock),
+                                        offlineCompressor(&offlineReleaser) {
         currentVersion = cv;
 
         writeBuffer.init();
@@ -244,7 +304,7 @@ public:
 
     int getContainer(uint64_t s, uint64_t e, uint64_t c, uint8_t *buffer, uint64_t *length) {
         if (s == currentVersion && e == currentVersion) {
-            return offlineCompressor.getContainer(c, buffer, length);
+            return offlineReleaser.getContainer(c, buffer, length);
         } else {
             return 0;
         }
@@ -272,20 +332,8 @@ private:
         Container *con = new Container(currentVersion, currentVersion, containerCounter,
                                        (uint8_t *) malloc(writeBuffer.used), writeBuffer.used);
         memcpy(con->buffer, writeBuffer.buffer, writeBuffer.used);
-        con->compressTag = false;
         offlineCompressor.addTask(con);
-
-//        gettimeofday(&ct0, NULL);
-//        size_t compressedSize = ZSTD_compress(writeBuffer.compressBuffer, BufferCapacity, writeBuffer.buffer,
-//                                              writeBuffer.used, 1);
-//        gettimeofday(&ct1, NULL);
-//        compressionTime += (ct1.tv_sec - ct0.tv_sec) * 1000000 + ct1.tv_usec - ct0.tv_usec;
-//        assert(!ZSTD_isError(compressedSize));
-//
-//        sizeBeforeCompression += writeBuffer.used;
-//        sizeAfterCompression += compressedSize;
-
-
+        offlineReleaser.addTask(con);
     }
 
     int prepareNew() {
@@ -304,7 +352,9 @@ private:
     MutexLock mutexLock;
     Condition condition;
 
+    OfflineReleaser offlineReleaser;
     OfflineCompressor offlineCompressor;
+
 };
 
 #endif //MEGA_CONTAINERCONSTRUCTOR_H

@@ -68,6 +68,7 @@ int do_restore(uint64_t version, uint64_t fallBehind){
     };
 
     GlobalRestoreReadPipelinePtr = new RestoreReadPipeline();
+    GlobalRestoreDecomPipelinePtr = new RestoreDecomPipeline();
     GlobalRestoreWritePipelinePtr = new RestoreWritePipeline(FLAGS_RestorePath, &countdownLatch);  // order is important.
     GlobalRestoreParserPipelinePtr = new RestoreParserPipeline(version, recipePath);  // order is important.
 
@@ -79,6 +80,7 @@ int do_restore(uint64_t version, uint64_t fallBehind){
     printf("Total duration : %lu, speed : %f MB/s\n", duration, (float)GlobalRestoreWritePipelinePtr->getTotalSize() / duration);
 
     delete GlobalRestoreReadPipelinePtr;
+    delete GlobalRestoreDecomPipelinePtr;
     delete GlobalRestoreParserPipelinePtr;
     delete GlobalRestoreWritePipelinePtr;
 

@@ -150,7 +150,8 @@ private:
 
                 int r = xd3_decode_memory(deltaBuffer, restoreWriteTask->deltaLength, restoreWriteTask->buffer,
                                           restoreWriteTask->length,
-                                          oriBuffer, &oriSize, ChunkBufferSize, XD3_COMPLEVEL_1);
+                                          oriBuffer, &oriSize, ChunkBufferSize,
+                                          XD3_COMPLEVEL_1 | XD3_SEC_NOALL | XD3_NOCOMPRESS);
                 gettimeofday(&dt2, NULL);
                 deltaCounter++;
                 decodingTime += (dt2.tv_sec - dt1.tv_sec) * 1000000 + dt2.tv_usec - dt1.tv_usec;

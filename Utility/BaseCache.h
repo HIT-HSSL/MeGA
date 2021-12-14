@@ -50,52 +50,40 @@ public:
         printf("hit rate: %f(%lu/%lu)\n", float(success) / access, success, access);
         printf("cache write:%lu, cache read:%lu, prefetching size : %lu\n", write, read, prefetching);
         printf("total size:%lu, items:%lu\n", totalSize, items);
-        printf("self hit:%lu\n", selfHit);
+        printf("self hit:%lu ReadBeforeWrite:%lu\n", selfHit, ReadBeforeWrite);
     }
 
     void loadBaseChunks(const BasePos& basePos) {
         gettimeofday(&t0, NULL);
         char pathBuffer[256];
 
-        uint64_t lcs, lce, cid;
-        bool currentMatch = false;
-
-        if (basePos.CategoryOrder == currentVersion) {
-            lcs = basePos.CategoryOrder;
-            lce = currentVersion;
-            cid = basePos.cid;
-            //sprintf(pathBuffer, ClassFilePath.data(), basePos.CategoryOrder, currentVersion, basePos.cid);
-            currentMatch = true;
-            selfHit++;
-        } else if (basePos.CategoryOrder) {
-            lcs = basePos.CategoryOrder;
-            lce = currentVersion - 1;
-            cid = basePos.cid;
-            //sprintf(pathBuffer, ClassFilePath.data(), basePos.CategoryOrder, currentVersion - 1, basePos.cid);
-        } else {
-            lcs = 1;
-            lce = currentVersion - 1;
-            cid = basePos.cid;
-            //sprintf(pathBuffer, ClassFileAppendPath.data(), 1, currentVersion - 1, basePos.cid);
-        }
-
+        int r = 0;
         uint64_t decompressSize;
         uint64_t readSize = 0;
-        int r = 0;
-        if (currentMatch) {
-            r = GlobalWriteFilePipelinePtr->getContainer(lcs, lce, cid, decompressBuffer, &decompressSize);
-            currentMatch = false;
+
+        if (basePos.CategoryOrder == currentVersion) {
+            sprintf(pathBuffer, ClassFilePath.data(), basePos.CategoryOrder, currentVersion, basePos.cid);
+            r = GlobalWriteFilePipelinePtr->getContainer(basePos.CategoryOrder, currentVersion, basePos.cid,
+                                                         preloadBuffer, &readSize);
+            selfHit++;
+        } else if (basePos.CategoryOrder) {
+            sprintf(pathBuffer, ClassFilePath.data(), basePos.CategoryOrder, currentVersion - 1, basePos.cid);
+        } else {
+            sprintf(pathBuffer, ClassFileAppendPath.data(), 1, currentVersion - 1, basePos.cid);
         }
+
         if (!r) {
-            sprintf(pathBuffer, ClassFilePath.data(), lcs, lce, cid);
             FileOperator basefile(pathBuffer, FileOpenType::Read);
             decompressSize = basefile.read(decompressBuffer, PreloadSize);
             basefile.releaseBufferedData();
-        }
-        prefetching += decompressSize;
 
-        readSize = ZSTD_decompress(preloadBuffer, PreloadSize, decompressBuffer, decompressSize);
-        assert(!ZSTD_isError(readSize));
+            prefetching += decompressSize;
+            readSize = ZSTD_decompress(preloadBuffer, PreloadSize, decompressBuffer, decompressSize);
+            assert(!ZSTD_isError(readSize));
+        } else {
+            ReadBeforeWrite++;
+        }
+
         assert(basePos.length <= readSize);
 
         BlockHeader *headPtr;
@@ -272,6 +260,8 @@ private:
     uint8_t *decompressBuffer = nullptr;
 
     uint64_t prefetching = 0;
+
+    uint64_t ReadBeforeWrite = 0;
 };
 
 #endif //MEGA_BASECACHE_H

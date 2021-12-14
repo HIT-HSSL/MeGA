@@ -238,7 +238,7 @@ private:
 
                     r = xd3_encode_memory(entry.buffer + entry.pos, entry.length,
                                           tempBlockEntry.block, tempBlockEntry.length, tempBuffer, &deltaSize,
-                                          entry.length, XD3_COMPLEVEL_1);
+                                          entry.length, XD3_COMPLEVEL_1 | XD3_SEC_NOALL | XD3_NOCOMPRESS);
                     gettimeofday(&dt2, NULL);
                     deltaTime += (dt2.tv_sec - dt1.tv_sec) * 1000000 + dt2.tv_usec - dt1.tv_usec;
 

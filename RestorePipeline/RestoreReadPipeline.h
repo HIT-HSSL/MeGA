@@ -10,7 +10,7 @@
 #define MEGA_RESTOREREADPIPELINE_H
 
 #include <fcntl.h>
-#include "RestoreParserPipeline.h"
+#include "RestoreDecomPipeline.h"
 
 extern std::string ClassFileAppendPath;
 
@@ -19,7 +19,7 @@ struct ReadPos {
     uint64_t length;
 };
 
-struct timeval t0, t1, rt0, rt1, dt0, dt1;
+struct timeval t0, t1, rt0, rt1;
 
 class RestoreReadPipeline {
 public:
@@ -36,8 +36,7 @@ public:
     }
 
     ~RestoreReadPipeline() {
-        printf("[RestoreRead] total: %lu, read time:%lu, decompression time:%lu\n", duration, readTime,
-               decompressionTime);
+        printf("[RestoreRead] total: %lu, read time:%lu\n", duration, readTime);
         runningFlag = false;
         condition.notifyAll();
         worker->join();
@@ -94,7 +93,7 @@ private:
 
             printf("read done\n");
             RestoreParseTask *restoreParseTask = new RestoreParseTask(true);
-            GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
+            GlobalRestoreDecomPipelinePtr->addTask(restoreParseTask);
 
             gettimeofday(&t1, NULL);
             duration += (t1.tv_sec-t0.tv_sec)*1000000 + t1.tv_usec - t0.tv_usec;
@@ -124,19 +123,19 @@ private:
                 gettimeofday(&rt1, NULL);
                 readTime += (rt1.tv_sec - rt0.tv_sec) * 1000000 + rt1.tv_usec - rt0.tv_usec;;
 
-                uint8_t *decompressBuffer = (uint8_t *) malloc(RestoreReadBufferLength);
-                gettimeofday(&dt0, NULL);
-                size_t decompressedSize = ZSTD_decompress(decompressBuffer, RestoreReadBufferLength, readBuffer,
-                                                          readLength);
-                gettimeofday(&dt1, NULL);
-                decompressionTime += (dt1.tv_sec - dt0.tv_sec) * 1000000 + dt1.tv_usec - dt0.tv_usec;;
-                assert(!ZSTD_isError(decompressedSize));
-                free(readBuffer);
+//                uint8_t *decompressBuffer = (uint8_t *) malloc(RestoreReadBufferLength);
+//                gettimeofday(&dt0, NULL);
+//                size_t decompressedSize = ZSTD_decompress(decompressBuffer, RestoreReadBufferLength, readBuffer,
+//                                                          readLength);
+//                gettimeofday(&dt1, NULL);
+//                decompressionTime += (dt1.tv_sec - dt0.tv_sec) * 1000000 + dt1.tv_usec - dt0.tv_usec;;
+//                assert(!ZSTD_isError(decompressedSize));
+//                free(readBuffer);
 
-                RestoreParseTask *restoreParseTask = new RestoreParseTask(decompressBuffer, decompressedSize,
+                RestoreParseTask *restoreParseTask = new RestoreParseTask(readBuffer, readLength,
                                                                           readLength);
                 restoreParseTask->index = versionId;
-                GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
+                GlobalRestoreDecomPipelinePtr->addTask(restoreParseTask);
             }
         }
 
@@ -164,18 +163,18 @@ private:
             gettimeofday(&rt1, NULL);
             readTime += (rt1.tv_sec - rt0.tv_sec) * 1000000 + rt1.tv_usec - rt0.tv_usec;;
 
-            uint8_t *decompressBuffer = (uint8_t *) malloc(RestoreReadBufferLength);
-            gettimeofday(&dt0, NULL);
-            size_t decompressedSize = ZSTD_decompress(decompressBuffer, RestoreReadBufferLength, readBuffer,
-                                                      readLength);
-            gettimeofday(&dt1, NULL);
-            decompressionTime += (dt1.tv_sec - dt0.tv_sec) * 1000000 + dt1.tv_usec - dt0.tv_usec;;
-            assert(!ZSTD_isError(decompressedSize));
-            free(readBuffer);
+//            uint8_t *decompressBuffer = (uint8_t *) malloc(RestoreReadBufferLength);
+//            gettimeofday(&dt0, NULL);
+//            size_t decompressedSize = ZSTD_decompress(decompressBuffer, RestoreReadBufferLength, readBuffer,
+//                                                      readLength);
+//            gettimeofday(&dt1, NULL);
+//            decompressionTime += (dt1.tv_sec - dt0.tv_sec) * 1000000 + dt1.tv_usec - dt0.tv_usec;;
+//            assert(!ZSTD_isError(decompressedSize));
+//            free(readBuffer);
 
-            RestoreParseTask *restoreParseTask = new RestoreParseTask(decompressBuffer, decompressedSize, readLength);
+            RestoreParseTask *restoreParseTask = new RestoreParseTask(readBuffer, readLength, readLength);
             restoreParseTask->index = column;
-            GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
+            GlobalRestoreDecomPipelinePtr->addTask(restoreParseTask);
         }
     }
 
@@ -202,18 +201,18 @@ private:
             gettimeofday(&rt1, NULL);
             readTime += (rt1.tv_sec - rt0.tv_sec) * 1000000 + rt1.tv_usec - rt0.tv_usec;;
 
-            uint8_t *decompressBuffer = (uint8_t *) malloc(RestoreReadBufferLength);
-            gettimeofday(&dt0, NULL);
-            size_t decompressedSize = ZSTD_decompress(decompressBuffer, RestoreReadBufferLength, readBuffer,
-                                                      readLength);
-            gettimeofday(&dt1, NULL);
-            decompressionTime += (dt1.tv_sec - dt0.tv_sec) * 1000000 + dt1.tv_usec - dt0.tv_usec;;
-            assert(!ZSTD_isError(decompressedSize));
-            free(readBuffer);
+//            uint8_t *decompressBuffer = (uint8_t *) malloc(RestoreReadBufferLength);
+//            gettimeofday(&dt0, NULL);
+//            size_t decompressedSize = ZSTD_decompress(decompressBuffer, RestoreReadBufferLength, readBuffer,
+//                                                      readLength);
+//            gettimeofday(&dt1, NULL);
+//            decompressionTime += (dt1.tv_sec - dt0.tv_sec) * 1000000 + dt1.tv_usec - dt0.tv_usec;;
+//            assert(!ZSTD_isError(decompressedSize));
+//            free(readBuffer);
 
-            RestoreParseTask *restoreParseTask = new RestoreParseTask(decompressBuffer, decompressedSize, readLength);
+            RestoreParseTask *restoreParseTask = new RestoreParseTask(readBuffer, readLength, readLength);
             restoreParseTask->index = column;
-            GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
+            GlobalRestoreDecomPipelinePtr->addTask(restoreParseTask);
         }
     }
 
@@ -226,7 +225,7 @@ private:
     MutexLock mutexLock;
     Condition condition;
 
-    uint64_t readTime = 0, decompressionTime = 0;
+    uint64_t readTime = 0;
 
     uint64_t duration = 0;
 };

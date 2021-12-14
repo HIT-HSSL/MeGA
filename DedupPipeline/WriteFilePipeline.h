@@ -73,6 +73,8 @@ private:
                 taskList.swap(receiveList);
             }
 
+            memset(&blockHeader, 0, sizeof(BlockHeader));
+
             gettimeofday(&t0, NULL);
 
             if (chunkWriterManager == nullptr) {
@@ -81,11 +83,10 @@ private:
                 gettimeofday(&initTime, NULL);
             }
 
-            for (auto &writeTask : taskList) {
+            for (auto &writeTask: taskList) {
                 if (!logicFileOperator) {
                     sprintf(buffer, LogicFilePath.c_str(), writeTask.fileID);
                     logicFileOperator = new FileOperator(buffer, FileOpenType::Write);
-                    bufferedFileWriter = new BufferedFileWriter(logicFileOperator, FLAGS_RecipeFlushBufferSize, 1);
                     printf("start write\n");
                 }
                 blockHeader = {
@@ -97,33 +98,37 @@ private:
                     case 0: //Unique
                         oriBuffer = writeTask.buffer;
                         blockHeader.sFeatures = writeTask.similarityFeatures;
-                        chunkWriterManager->writeClass((uint8_t * ) & blockHeader, sizeof(BlockHeader),
+                        chunkWriterManager->writeClass((uint8_t *) &blockHeader, sizeof(BlockHeader),
                                                        writeTask.buffer + writeTask.pos, writeTask.length);
-                        bufferedFileWriter->write((uint8_t * ) & blockHeader, sizeof(BlockHeader));
+                        logicFileOperator->write((uint8_t *) &blockHeader, sizeof(BlockHeader));
+                        //bufferedFileWriter->write((uint8_t * ) & blockHeader, sizeof(BlockHeader));
                         recipeLength += blockHeader.length;
                         break;
                     case 1: //Internal
-                        if(writeTask.deltaTag){
+                        if (writeTask.deltaTag) {
                             blockHeader.baseFP = writeTask.baseFP;
                             blockHeader.oriLength = writeTask.oriLength;
                         }
-                        bufferedFileWriter->write((uint8_t * ) & blockHeader, sizeof(BlockHeader));
+                        logicFileOperator->write((uint8_t *) &blockHeader, sizeof(BlockHeader));
+//                        bufferedFileWriter->write((uint8_t * ) & blockHeader, sizeof(BlockHeader));
                         recipeLength += blockHeader.length;
                         break;
                     case 2: //Adjacent
-                        if(writeTask.deltaTag){
+                        if (writeTask.deltaTag) {
                             blockHeader.baseFP = writeTask.baseFP;
                             blockHeader.oriLength = writeTask.oriLength;
                         }
-                        bufferedFileWriter->write((uint8_t * ) & blockHeader, sizeof(BlockHeader));
+                        //bufferedFileWriter->write((uint8_t * ) & blockHeader, sizeof(BlockHeader));
+                        logicFileOperator->write((uint8_t *) &blockHeader, sizeof(BlockHeader));
                         recipeLength += blockHeader.length;
                         break;
                     case 4: //Similar
                         blockHeader.baseFP = writeTask.baseFP;
                         blockHeader.oriLength = writeTask.oriLength;
-                        chunkWriterManager->writeClass((uint8_t * ) & blockHeader, sizeof(BlockHeader),
+                        chunkWriterManager->writeClass((uint8_t *) &blockHeader, sizeof(BlockHeader),
                                                        writeTask.buffer, writeTask.length);
-                        bufferedFileWriter->write((uint8_t * ) & blockHeader, sizeof(BlockHeader));
+                        logicFileOperator->write((uint8_t *) &blockHeader, sizeof(BlockHeader));
+                        //bufferedFileWriter->write((uint8_t * ) & blockHeader, sizeof(BlockHeader));
                         recipeLength += blockHeader.oriLength;
                         free(writeTask.buffer);
                         break;
@@ -134,7 +139,6 @@ private:
 
                 if (writeTask.countdownLatch) {
                     printf("WritePipeline finish\n");
-                    delete bufferedFileWriter;
                     delete logicFileOperator;
                     logicFileOperator = nullptr;
                     delete chunkWriterManager;
@@ -159,7 +163,6 @@ private:
     }
 
     FileOperator *logicFileOperator;
-    BufferedFileWriter* bufferedFileWriter;
     char buffer[256];
     bool runningFlag;
     std::thread *worker;
