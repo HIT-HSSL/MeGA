@@ -91,8 +91,7 @@ public:
         uint64_t preLoadPos = 0;
         uint64_t leftLength = readSize;
 
-        while (leftLength > sizeof(BlockHeader) &&
-               leftLength >= (2048 + sizeof(BlockHeader))) {// todo: min chunksize configured to 2048
+        while (leftLength > sizeof(BlockHeader)) {// todo: min chunksize configured to 2048
             headPtr = (BlockHeader *) (preloadBuffer + preLoadPos);
             if (headPtr->length + sizeof(BlockHeader) > leftLength) {
                 break;
