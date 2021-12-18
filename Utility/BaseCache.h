@@ -19,7 +19,7 @@ uint64_t PreloadSize = ContainerSize * 1.2;
 DEFINE_uint64(CacheSize,
               128, "CappingThreshold");
 
-uint64_t TotalSizeThreshold = FLAGS_CacheSize * 4 * 1024 * 1024;
+uint64_t TotalSizeThreshold = FLAGS_CacheSize * ContainerSize;
 
 int UpdateScore = 2;
 
