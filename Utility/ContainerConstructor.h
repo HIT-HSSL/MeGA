@@ -256,9 +256,9 @@ private:
                 break;
             }
 
-            uint8_t *compressBuffer = (uint8_t *) malloc(task->length);
+            uint8_t *compressBuffer = (uint8_t *) malloc(BufferCapacity);
             gettimeofday(&ct0, NULL);
-            size_t compressedSize = ZSTD_compress(compressBuffer, task->length, task->buffer,
+            size_t compressedSize = ZSTD_compress(compressBuffer, BufferCapacity, task->buffer,
                                                   task->length, 1);
             gettimeofday(&ct1, NULL);
             compressionTime += (ct1.tv_sec - ct0.tv_sec) * 1000000 + ct1.tv_usec - ct0.tv_usec;
