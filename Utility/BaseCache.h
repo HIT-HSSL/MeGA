@@ -72,7 +72,7 @@ public:
             sprintf(pathBuffer, ClassFileAppendPath.data(), 1, currentVersion - 1, basePos.cid);
         }
 
-        if (!r) {
+        if (r == 0) {
             FileOperator basefile(pathBuffer, FileOpenType::Read);
             decompressSize = basefile.read(decompressBuffer, PreloadSize);
             basefile.releaseBufferedData();
@@ -262,6 +262,47 @@ private:
     uint64_t prefetching = 0;
 
     uint64_t ReadBeforeWrite = 0;
+};
+
+class ContainerCache {
+public:
+    int getRecord(const BasePos *basePos, BlockEntry *cacheBlock) {
+        {
+            auto iterCache = cacheMap.find(basePos->sha1Fp);
+            if (iterCache != cacheMap.end()) {
+                *cacheBlock = iterCache->second;
+                return 1;
+            }
+            return 0;
+        }
+    }
+
+    void addRecord(const SHA1FP &sha1Fp, uint8_t *buffer, uint64_t length) {
+        {
+            auto iter = cacheMap.find(sha1Fp);
+            if (iter == cacheMap.end()) {
+                uint8_t *cacheBuffer = (uint8_t *) malloc(length);
+                memcpy(cacheBuffer, buffer, length);
+                cacheMap[sha1Fp] = {
+                        cacheBuffer, length
+                };
+            }
+        }
+    }
+
+    void clear() {
+        for (const auto &blockEntry: cacheMap) {
+            free(blockEntry.second.block);
+        }
+        cacheMap.clear();
+    }
+
+    ~ContainerCache() {
+        clear();
+    }
+
+private:
+    std::unordered_map<SHA1FP, BlockEntry, TupleHasher, TupleEqualer> cacheMap;
 };
 
 #endif //MEGA_BASECACHE_H

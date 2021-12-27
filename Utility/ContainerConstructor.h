@@ -85,14 +85,17 @@ public:
 
     int getContainer(uint64_t c, uint8_t *buffer, uint64_t *length) {
         MutexLockGuard mutexLockGuard(mutexLock);
+        uint64_t last;
         for (auto item: taskList) {
             if (item->cid == c) {
                 memcpy(buffer, item->buffer, item->length);
                 *length = item->length;
                 return 1;
             }
+            last = item->cid;
         }
-        return 0;
+        if (c < last) return 0;
+        if (c > last) return -1;
     }
 
     ~OfflineReleaser() {

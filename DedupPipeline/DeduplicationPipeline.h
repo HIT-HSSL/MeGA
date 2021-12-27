@@ -224,9 +224,14 @@ private:
                     int r;
                     r = baseCache.getRecordWithoutFresh(&entry.basePos, &tempBlockEntry);
                     if (!r) {
-                        baseCache.loadBaseChunks(entry.basePos);
-                        r = baseCache.getRecordNoFS(&entry.basePos, &tempBlockEntry);
-                        assert(r);
+                        if (entry.basePos.CategoryOrder == entry.fileID && entry.basePos.cid == currentCID) {
+                            r = containerCache.getRecord(&entry.basePos, &tempBlockEntry);
+                            assert(r);
+                        } else {
+                            baseCache.loadBaseChunks(entry.basePos);
+                            r = baseCache.getRecordNoFS(&entry.basePos, &tempBlockEntry);
+                            assert(r);
+                        }
                     }
 
                     // calculate delta
@@ -271,6 +276,7 @@ private:
                         if (lastCategoryLength >= ContainerSize) {
                             lastCategoryLength = 0;
                             currentCID++;
+                            containerCache.clear();
                         }
                         chunkCounter[3]++;
                         afterDelta += deltaSize;
@@ -286,10 +292,12 @@ private:
                                                                  currentCID, entry.length});
                     writeTask.similarityFeatures = entry.similarityFeatures;
                     baseCache.addRecord(writeTask.sha1Fp, writeTask.buffer + writeTask.pos, writeTask.length);
+                    containerCache.addRecord(writeTask.sha1Fp, writeTask.buffer + writeTask.pos, writeTask.length);
                     lastCategoryLength += entry.length + sizeof(BlockHeader);
                     if (lastCategoryLength >= ContainerSize) {
                         lastCategoryLength = 0;
                         currentCID++;
+                        containerCache.clear();
                     }
                     afterDelta += entry.length;
                 }
@@ -352,6 +360,7 @@ private:
     Condition condition;
 
     BaseCache baseCache;
+    ContainerCache containerCache;
 
     uint64_t totalLength = 0;
     uint64_t afterDedup = 0;
