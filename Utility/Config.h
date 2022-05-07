@@ -27,19 +27,19 @@ uint64_t ContainerSize = 16 * 1024 * 1024;
 class ConfigReader {
 public:
     ConfigReader(std::string p) {
-        auto data = toml::parse(p);
-        std::string path = toml::find<std::string>(data, "path");
-        LogicFilePath = path + "/logicFiles/Recipe%lu";
-        ClassFilePath = path + "/storageFiles/Active_LC(%lu,%lu)Container%lu";
-        VersionFilePath = path + "/storageFiles/Archived_LC(%lu,%lu)Container%lu";
-        ManifestPath = path + "/manifest";
-        KVPath = path + "kvstore";
-        HomePath = path;
-        ClassFileAppendPath = path + "/storageFiles/Active_LC(%lu,%lu)Append_Container%lu";
-        int64_t rt = toml::find<int64_t>(data, "retention");
-        RetentionTime = rt;
-        printf("-----------------------Configure-----------------------\n");
-        printf("MeGA storage path:%s, RetentionTime:%lu\n", path.data(), rt);
+      auto data = toml::parse(p);
+      std::string path = toml::find<std::string>(data, "path");
+      LogicFilePath = path + "/logicFiles/Recipe%lu";
+      ClassFilePath = path + "/storageFiles/Active_Cat(%lu,%lu)Container%lu";
+      VersionFilePath = path + "/storageFiles/Archived_Cat(%lu,%lu)Container%lu";
+      ManifestPath = path + "/manifest";
+      KVPath = path + "kvstore";
+      HomePath = path;
+      ClassFileAppendPath = path + "/storageFiles/Active_Cat(%lu,%lu)Append_Container%lu";
+      int64_t rt = toml::find<int64_t>(data, "retention");
+      RetentionTime = rt;
+      printf("-----------------------Configure-----------------------\n");
+      printf("MeGA storage path:%s, RetentionTime:%lu\n", path.data(), rt);
     }
 private:
 };

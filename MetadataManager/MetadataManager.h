@@ -565,6 +565,37 @@ public:
 //        localSF2.clear();
 //        localSF3.clear();
 //    }
+    uint64_t getTotalLength() const {
+      return totalLength;
+    }
+
+    void setTotalLength(uint64_t totalLength) {
+      MetadataManager::totalLength = totalLength;
+    }
+
+    uint64_t getAfterDedup() const {
+      return afterDedup;
+    }
+
+    void setAfterDedup(uint64_t afterDedup) {
+      MetadataManager::afterDedup = afterDedup;
+    }
+
+    uint64_t getAfterDelta() const {
+      return afterDelta;
+    }
+
+    void setAfterDelta(uint64_t afterDelta) {
+      MetadataManager::afterDelta = afterDelta;
+    }
+
+    uint64_t getAfterCompression() const {
+      return AfterCompression;
+    }
+
+    void setAfterCompression(uint64_t afterCompression) {
+      AfterCompression = afterCompression;
+    }
 
 private:
     FPIndex earlierTable;
@@ -572,7 +603,7 @@ private:
     SimilarityIndex earlierSimilarityTable;
     SimilarityIndex laterSimilarityTable;
 
-    //std::unordered_set<uint64_t> localSF1, localSF2, localSF3;
+    uint64_t totalLength = 0, afterDedup = 0, afterDelta = 0, AfterCompression = 0;
 
     MutexLock tableLock;
 };

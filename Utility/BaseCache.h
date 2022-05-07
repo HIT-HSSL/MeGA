@@ -12,26 +12,67 @@
 #include <unordered_map>
 #include <map>
 
+DEFINE_uint64(CacheSize,
+              128, "Cache Size");
+
 extern std::string ClassFileAppendPath;
 extern uint64_t ContainerSize;
 uint64_t PreloadSize = ContainerSize * 1.2;
 
-DEFINE_uint64(CacheSize,
-              128, "CappingThreshold");
-
-uint64_t TotalSizeThreshold = FLAGS_CacheSize * ContainerSize;
-
 int UpdateScore = 2;
+
+class ContainerCache {
+public:
+    int getRecord(const BasePos *basePos, BlockEntry *cacheBlock) {
+      {
+        auto iterCache = cacheMap.find(basePos->sha1Fp);
+        if (iterCache != cacheMap.end()) {
+          *cacheBlock = iterCache->second;
+          return 1;
+        }
+        return 0;
+      }
+    }
+
+    void addRecord(const SHA1FP &sha1Fp, uint8_t *buffer, uint64_t length) {
+      {
+        auto iter = cacheMap.find(sha1Fp);
+        if (iter == cacheMap.end()) {
+          uint8_t *cacheBuffer = (uint8_t *) malloc(length);
+          memcpy(cacheBuffer, buffer, length);
+          cacheMap[sha1Fp] = {
+                  cacheBuffer, length
+          };
+        }
+      }
+    }
+
+    void clear() {
+      for (const auto &blockEntry: cacheMap) {
+        free(blockEntry.second.block);
+      }
+      cacheMap.clear();
+    }
+
+    ~ContainerCache() {
+      clear();
+    }
+
+private:
+    std::unordered_map<SHA1FP, BlockEntry, TupleHasher, TupleEqualer> cacheMap;
+};
+
+uint64_t threshold = FLAGS_CacheSize * ContainerSize;
 
 class BaseCache {
 public:
     BaseCache() : totalSize(0), index(0), cacheMap(65536), write(0), read(0) {
-        preloadBuffer = (uint8_t *) malloc(PreloadSize);
-        decompressBuffer = (uint8_t *) malloc(PreloadSize);
+      preloadBuffer = (uint8_t *) malloc(PreloadSize);
+      decompressBuffer = (uint8_t *) malloc(PreloadSize);
     }
 
     void setCurrentVersion(uint64_t version) {
-        currentVersion = version;
+      currentVersion = version;
     }
 
     ~BaseCache() {
@@ -126,17 +167,17 @@ public:
                     lruList[index] = sha1Fp;
                     index++;
                     totalSize += length;
-                    while (totalSize > TotalSizeThreshold) {
-                        auto iterLru = lruList.begin();
-                        assert(iterLru != lruList.end());
-                        auto iterCache = cacheMap.find(iterLru->second);
-                        assert(iterCache != cacheMap.end());
-                        totalSize -= iterCache->second.length;
-                        free(iterCache->second.block);
-                        cacheMap.erase(iterCache);
-                        lruList.erase(iterLru);
-                        items--;
-                    }
+                  while (totalSize > threshold) {
+                    auto iterLru = lruList.begin();
+                    assert(iterLru != lruList.end());
+                    auto iterCache = cacheMap.find(iterLru->second);
+                    assert(iterCache != cacheMap.end());
+                    totalSize -= iterCache->second.length;
+                    free(iterCache->second.block);
+                    cacheMap.erase(iterCache);
+                    lruList.erase(iterLru);
+                    items--;
+                  }
                 }
             } else {
                 // it should not happen
@@ -262,47 +303,6 @@ private:
     uint64_t prefetching = 0;
 
     uint64_t ReadBeforeWrite = 0;
-};
-
-class ContainerCache {
-public:
-    int getRecord(const BasePos *basePos, BlockEntry *cacheBlock) {
-        {
-            auto iterCache = cacheMap.find(basePos->sha1Fp);
-            if (iterCache != cacheMap.end()) {
-                *cacheBlock = iterCache->second;
-                return 1;
-            }
-            return 0;
-        }
-    }
-
-    void addRecord(const SHA1FP &sha1Fp, uint8_t *buffer, uint64_t length) {
-        {
-            auto iter = cacheMap.find(sha1Fp);
-            if (iter == cacheMap.end()) {
-                uint8_t *cacheBuffer = (uint8_t *) malloc(length);
-                memcpy(cacheBuffer, buffer, length);
-                cacheMap[sha1Fp] = {
-                        cacheBuffer, length
-                };
-            }
-        }
-    }
-
-    void clear() {
-        for (const auto &blockEntry: cacheMap) {
-            free(blockEntry.second.block);
-        }
-        cacheMap.clear();
-    }
-
-    ~ContainerCache() {
-        clear();
-    }
-
-private:
-    std::unordered_map<SHA1FP, BlockEntry, TupleHasher, TupleEqualer> cacheMap;
 };
 
 #endif //MEGA_BASECACHE_H

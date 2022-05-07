@@ -72,9 +72,9 @@ private:
                 baseClass = baseCategory;
                 for (uint64_t i = baseCategory; i < baseCategory + restoreTask->targetVersion; i++) {
                     categoryList.push_front(i);
-                    printf("LC-group # %lu is required\n", i);
+                  printf("Cat. # %lu is required\n", i);
                 }
-                printf("append LC-group # %lu is optional\n", baseCategory);
+              printf("append Cat. # %lu is optional\n", baseCategory);
             }else{
                 assert(0); // todo: do not consider fall behind currently
             }
@@ -91,7 +91,7 @@ private:
             }
 
 
-            printf("read done\n");
+            printf("read done: %lu\n", counter);
             RestoreParseTask *restoreParseTask = new RestoreParseTask(true);
             GlobalRestoreDecomPipelinePtr->addTask(restoreParseTask);
 
@@ -110,7 +110,8 @@ private:
                 if (!archivedReader.ok()) {
                     break;
                 }
-                cid++;
+              cid++;
+              counter++;
             }
             uint64_t cidMax = cid - 1;
 
@@ -150,7 +151,8 @@ private:
             if (!activeReader.ok()) {
                 break;
             }
-            cid++;
+          cid++;
+          counter++;
         }
         uint64_t cidMax = cid - 1;
 
@@ -188,7 +190,8 @@ private:
             if (!activeReader.ok()) {
                 break;
             }
-            cid++;
+          cid++;
+          counter++;
         }
         uint64_t cidMax = cid - 1;
 
@@ -228,6 +231,8 @@ private:
     uint64_t readTime = 0;
 
     uint64_t duration = 0;
+
+    uint64_t counter = 0;
 };
 
 static RestoreReadPipeline *GlobalRestoreReadPipelinePtr;

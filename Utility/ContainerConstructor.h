@@ -208,11 +208,8 @@ public:
                                                           condition(mutexLock),
                                                           offlineWriter(offlineReleaser) {
         sizeBeforeCompression = 0;
-        sizeAfterCompression = 0;
-        worker1 = new std::thread(std::bind(&OfflineCompressor::compressCallback, this));
-        worker2 = new std::thread(std::bind(&OfflineCompressor::compressCallback, this));
-        worker3 = new std::thread(std::bind(&OfflineCompressor::compressCallback, this));
-        worker4 = new std::thread(std::bind(&OfflineCompressor::compressCallback, this));
+      sizeAfterCompression = 0;
+      worker = new std::thread(std::bind(&OfflineCompressor::compressCallback, this));
     }
 
     int addTask(Container *con) {
@@ -223,19 +220,14 @@ public:
     }
 
     ~OfflineCompressor() {
-        printf("[ContainerConstructor] Compression Time : %lu\n", compressionTime);
-        printf("BeforeCompression:%lu, AfterCompression:%lu, CompressionReduce:%lu, CompressionRatio:%f\n",
-               (uint64_t) sizeBeforeCompression, (uint64_t) sizeAfterCompression,
-               sizeBeforeCompression - sizeAfterCompression,
-               (float) sizeBeforeCompression / sizeAfterCompression);
-        addTask(NULL);
-        addTask(NULL);
-        addTask(NULL);
-        addTask(NULL);
-        worker1->join();
-        worker2->join();
-        worker3->join();
-        worker4->join();
+      printf("[ContainerConstructor] Compression Time : %lu\n", compressionTime);
+//        printf("BeforeCompression:%lu, AfterCompression:%lu, CompressionReduce:%lu, CompressionRatio:%f\n",
+//               (uint64_t) sizeBeforeCompression, (uint64_t) sizeAfterCompression,
+//               sizeBeforeCompression - sizeAfterCompression,
+//               (float) sizeBeforeCompression / sizeAfterCompression);
+      GlobalMetadataManagerPtr->setAfterCompression(sizeAfterCompression);
+      addTask(NULL);
+      worker->join();
     }
 
 private:
@@ -277,10 +269,7 @@ private:
         }
     }
 
-    std::thread *worker1;
-    std::thread *worker2;
-    std::thread *worker3;
-    std::thread *worker4;
+    std::thread *worker;
     bool runningFlag;
     uint64_t taskAmount;
     std::list<Container *> taskList;

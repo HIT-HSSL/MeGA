@@ -23,8 +23,8 @@ public:
     int run(uint64_t maxVersion) {
         printf("start to eliminate\n");
 
-        printf("delete invalid LC-groups\n");
-        versionFileDeleter(1);
+        printf("delete invalid categories\n");
+      versionFileDeleter(1);
 
         printf("processing categories files\n");
         activeFileCombinationProcessor(1, 2, maxVersion);

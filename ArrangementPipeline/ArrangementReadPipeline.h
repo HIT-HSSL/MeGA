@@ -110,7 +110,7 @@ private:
             remove(pathbuffer);
             cid++;
         }
-        printf("Read %lu containers from LC(%lu,%lu)\n", cid + 1, classId, versionId);
+        printf("Read %lu containers from Cat.(%lu,%lu)\n", cid + 1, classId, versionId);
         ArrangementFilterTask *arrangementFilterTask = new ArrangementFilterTask(true, classId);
         GlobalArrangementFilterPipelinePtr->addTask(arrangementFilterTask);
 
@@ -143,7 +143,7 @@ private:
             remove(pathbuffer);
             cid++;
         }
-        printf("Read %lu containers from LC(%lu,%lu)\n", cid, classId, versionId);
+      printf("Read %lu containers from Cat.(%lu,%lu)\n", cid, classId, versionId);
 
         cid = 0;
         while (1) {
@@ -170,7 +170,7 @@ private:
             remove(pathbuffer);
             cid++;
         }
-        printf("Read %lu containers from LC(%lu,%lu)_append\n", cid, classId, versionId);
+      printf("Read %lu containers from Cat.(%lu,%lu)_append\n", cid, classId, versionId);
         ArrangementFilterTask *arrangementFilterTask = new ArrangementFilterTask(true, classId);
         GlobalArrangementFilterPipelinePtr->addTask(arrangementFilterTask);
         return 0;

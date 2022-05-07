@@ -15,7 +15,7 @@
 #include "WriteFilePipeline.h"
 #include <assert.h>
 #include "../Utility/Likely.h"
-#include "../Utility/xdelta3.h"
+#include "../xdelta/xdelta3.h"
 #include "../Utility/BaseCache.h"
 
 struct BaseChunkPositions {
@@ -23,8 +23,8 @@ struct BaseChunkPositions {
     uint64_t quantizedOffset: 42;
 };
 
-DEFINE_uint64(CappingThreshold,
-              10, "CappingThreshold");
+DEFINE_uint64(DeltaSelectorThreshold,
+              10, "DeltaSelectorThreshold");
 
 extern bool DeltaSwitch;
 struct timeval initTime, endTime;
@@ -55,12 +55,15 @@ public:
     }
 
     void getStatistics() {
-        printf("[DedupDeduplicating] total : %lu, delta encoding : %lu\n", duration, deltaTime);
-        printf("Unique:%lu, Internal:%lu, Adjacent:%lu, Delta:%lu, Reject:%lu\n", chunkCounter[0], chunkCounter[1],
-               chunkCounter[2], chunkCounter[3], cappingReject);
-        printf("xdeltaError:%lu\n", xdeltaError);
-        printf("Total Length : %lu, AfterDedup : %lu, AfterDelta: %lu, DedupRatio : %f, DeltaRatio : %f\n",
-               totalLength, afterDedup, afterDelta, (float) totalLength / afterDedup, (float) totalLength / afterDelta);
+      printf("[DedupDeduplicating] total : %lu, delta encoding : %lu\n", duration, deltaTime);
+      printf("Unique:%lu, Internal:%lu, Adjacent:%lu, Delta:%lu, Reject:%lu\n", chunkCounter[0], chunkCounter[1],
+             chunkCounter[2], chunkCounter[3], cappingReject);
+      printf("xdeltaError:%lu\n", xdeltaError);
+//        printf("Total Length : %lu, AfterDedup : %lu, AfterDelta: %lu, DedupRatio : %f, DeltaRatio : %f\n",
+//               totalLength, afterDedup, afterDelta, (float) totalLength / afterDedup, (float) totalLength / afterDelta);
+      GlobalMetadataManagerPtr->setTotalLength(totalLength);
+      GlobalMetadataManagerPtr->setAfterDedup(afterDedup);
+      GlobalMetadataManagerPtr->setAfterDelta(afterDelta);
     }
 
 
@@ -103,9 +106,9 @@ private:
                 segmentLength += dedupTask.length;
                 if (segmentLength > SegmentThreshold || dedupTask.countdownLatch) {
 
-                    processingWaitingList(detectList);
-                    cappingBaseChunks(detectList);
-                    doDedup(detectList);
+                  processingWaitingList(detectList);
+                  deltaSelector(detectList);
+                  doDedup(detectList);
 
                     segmentLength = 0;
                     detectList.clear();
@@ -153,26 +156,26 @@ private:
         }
     }
 
-    void cappingBaseChunks(std::list<DedupTask> &dl) {
-        std::unordered_map<uint64_t, uint64_t> baseChunkPositions;
-        for (auto &entry: dl) {
-            if (entry.lookupResult == LookupResult::Similar && entry.inCache == 0) {
-                uint64_t key;
-                BaseChunkPositions *bcp = (BaseChunkPositions *) &key;
-                bcp->category = entry.basePos.CategoryOrder;
-                bcp->quantizedOffset = entry.basePos.cid;
-                auto iter = baseChunkPositions.find(key);
-                if (iter == baseChunkPositions.end()) {
-                    baseChunkPositions.insert({key, 1});
+    void deltaSelector(std::list<DedupTask> &dl) {
+      std::unordered_map<uint64_t, uint64_t> baseChunkPositions;
+      for (auto &entry: dl) {
+        if (entry.lookupResult == LookupResult::Similar && entry.inCache == 0) {
+          uint64_t key;
+          BaseChunkPositions *bcp = (BaseChunkPositions *) &key;
+          bcp->category = entry.basePos.CategoryOrder;
+          bcp->quantizedOffset = entry.basePos.cid;
+          auto iter = baseChunkPositions.find(key);
+          if (iter == baseChunkPositions.end()) {
+            baseChunkPositions.insert({key, 1});
                 } else {
                     baseChunkPositions[key]++;
                 }
             }
         }
         for (auto &entry: baseChunkPositions) {
-            if (entry.second < FLAGS_CappingThreshold) {
-                entry.second = 0;
-            }
+          if (entry.second < FLAGS_DeltaSelectorThreshold) {
+            entry.second = 0;
+          }
         }
         for (auto &entry: dl) {
             if (entry.lookupResult == LookupResult::Similar && entry.inCache == 0) {

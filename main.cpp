@@ -18,8 +18,8 @@
 
 DEFINE_string(RestorePath,
               "", "restore path");
-DEFINE_uint64(RestoreRecipe,
-1, "restore recipe");
+DEFINE_int64(RestoreRecipe,
+             1, "restore recipe");
 DEFINE_string(task,
               "", "task type");
 DEFINE_string(BatchFilePath,
@@ -54,18 +54,20 @@ uint64_t  do_backup(const std::string& path){
     return storageTask.length;
 }
 
-int do_restore(uint64_t version, uint64_t fallBehind){
-    struct timeval t0, t1;
+int do_restore(uint64_t version, uint64_t fallBehind) {
+  struct timeval t0, t1;
 
-    char recipePath[256];
-    sprintf(recipePath, LogicFilePath.data(), version);
-    CountdownLatch countdownLatch(1);
+  if (version == -1) version = TotalVersion;
 
-    RestoreTask restoreTask = {
-            TotalVersion,
-            version,
-            fallBehind
-    };
+  char recipePath[256];
+  sprintf(recipePath, LogicFilePath.data(), version);
+  CountdownLatch countdownLatch(1);
+
+  RestoreTask restoreTask = {
+          TotalVersion,
+          version,
+          fallBehind
+  };
 
     GlobalRestoreReadPipelinePtr = new RestoreReadPipeline();
     GlobalRestoreDecomPipelinePtr = new RestoreDecomPipeline();
@@ -155,26 +157,33 @@ int main(int argc, char **argv) {
 
             gettimeofday(&t1, NULL);
             uint64_t singleDedup = (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
-            printf("[CheckPoint:main] InitTime:%lu, EndTime:%lu\n", t0.tv_sec * 1000000 + t0.tv_usec,
-                   t1.tv_sec * 1000000 + t1.tv_usec);
-            dedupDuration += singleDedup;
-            printf("Backup duration:%lu us, Backup Size:%lu, Speed:%fMB/s\n", singleDedup, taskLength,
-                   (float) taskLength / singleDedup);
-            GlobalReadPipelinePtr->getStatistics();
-            GlobalChunkingPipelinePtr->getStatistics();
-            GlobalHashingPipelinePtr->getStatistics();
-            GlobalDeduplicationPipelinePtr->getStatistics();
-            GlobalWriteFilePipelinePtr->getStatistics();
+          printf("[CheckPoint:main] InitTime:%lu, EndTime:%lu\n", t0.tv_sec * 1000000 + t0.tv_usec,
+                 t1.tv_sec * 1000000 + t1.tv_usec);
+          dedupDuration += singleDedup;
+          printf("Backup duration:%lu us, Backup Size:%lu, Speed:%fMB/s\n", singleDedup, taskLength,
+                 (float) taskLength / singleDedup);
+          GlobalReadPipelinePtr->getStatistics();
+          GlobalChunkingPipelinePtr->getStatistics();
+          GlobalHashingPipelinePtr->getStatistics();
+          GlobalDeduplicationPipelinePtr->getStatistics();
+          GlobalWriteFilePipelinePtr->getStatistics();
+          printf("BackupSize:%lu, AfterDedup:%lu, AfterDelta:%lu, AfterCompression:%lu, Total Reduction Ratio:%f\n",
+                 GlobalMetadataManagerPtr->getTotalLength(),
+                 GlobalMetadataManagerPtr->getAfterDedup(),
+                 GlobalMetadataManagerPtr->getAfterDelta(),
+                 GlobalMetadataManagerPtr->getAfterCompression(),
+                 (float) (GlobalMetadataManagerPtr->getTotalLength()) /
+                 (GlobalMetadataManagerPtr->getAfterCompression()));
 
-            printf("----------------------Arrangement------------------------\n");
-            if (FLAGS_ApplyArrangement){
-                gettimeofday(&t0, NULL);
-                do_arrangement();
-                gettimeofday(&t1, NULL);
-                uint64_t singleArr = (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
-                arrDuration += singleArr;
-                printf("Arrangement duration : %lu\n", singleArr);
-            }else{
+          printf("----------------------Arrangement------------------------\n");
+          if (FLAGS_ApplyArrangement) {
+            gettimeofday(&t0, NULL);
+            do_arrangement();
+            gettimeofday(&t1, NULL);
+            uint64_t singleArr = (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
+            arrDuration += singleArr;
+            printf("Arrangement duration : %lu\n", singleArr);
+          } else {
                 printf("Arrangement is disabled by user.\n");
                 manifest.ArrangementFallBehind++;
             }
@@ -183,33 +192,34 @@ int main(int argc, char **argv) {
             if(TotalVersion > RetentionTime){
                 do_delete();
             }else{
-                printf("Only %lu versions exist, and the retention is %lu, deletion is not required.\n", TotalVersion, RetentionTime);
+              printf("Only %lu versions exist, and the retention is %lu, deletion is not required.\n", TotalVersion,
+                     RetentionTime);
             }
         }
 
-        {
-            manifest.TotalVersion = TotalVersion;
-            ManifestWriter manifestWriter(manifest);
-            GlobalMetadataManagerPtr->save();
-        }
+      {
+        manifest.TotalVersion = TotalVersion;
+        ManifestWriter manifestWriter(manifest);
+        GlobalMetadataManagerPtr->save();
+      }
 
-        printf("==============================================\n");
-        printf("Total deduplication duration:%lu us, Total Size:%lu, Speed:%fMB/s, arrange duration:%lu\n",
-               dedupDuration, taskLength,
-               (float) taskLength / dedupDuration, arrDuration);
-        GlobalDeduplicationPipelinePtr->getStatistics();
-        printf("done\n");
-        printf("==============================================\n");
+//        printf("==============================================\n");
+//        printf("Total deduplication duration:%lu us, Total Size:%lu, Speed:%fMB/s, arrange duration:%lu\n",
+//               dedupDuration, taskLength,
+//               (float) taskLength / dedupDuration, arrDuration);
+//        GlobalDeduplicationPipelinePtr->getStatistics();
+//        printf("done\n");
+//        printf("==============================================\n");
 
-        // pipelines release
-        //------------------------------------------------------
-        delete GlobalArrangementReadPipelinePtr;
-        delete GlobalArrangementFilterPipelinePtr;
-        delete GlobalArrangementWritePipelinePtr;
-        delete GlobalReadPipelinePtr;
-        delete GlobalChunkingPipelinePtr;
-        delete GlobalHashingPipelinePtr;
-        delete GlobalDeduplicationPipelinePtr;
+      // pipelines release
+      //------------------------------------------------------
+      delete GlobalArrangementReadPipelinePtr;
+      delete GlobalArrangementFilterPipelinePtr;
+      delete GlobalArrangementWritePipelinePtr;
+      delete GlobalReadPipelinePtr;
+      delete GlobalChunkingPipelinePtr;
+      delete GlobalHashingPipelinePtr;
+      delete GlobalDeduplicationPipelinePtr;
         delete GlobalWriteFilePipelinePtr;
         delete GlobalMetadataManagerPtr;
         //------------------------------------------------------

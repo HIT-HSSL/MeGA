@@ -1,5 +1,4 @@
 # storage path for MeGA
 path = "/data/MeGAHome"
 
-# how many backups to retain. -1 means unlimited.
 retention = 20
