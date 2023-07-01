@@ -69,26 +69,26 @@ private:
 
             gettimeofday(&t0, NULL);
             for (auto &dedupTask : taskList) {
-                //openssl sha1
-                //SHA1_Init(&ctx);
-                //SHA1_Update(&ctx, dedupTask.buffer + dedupTask.pos, (uint32_t) dedupTask.length);
-                //SHA1_Final((unsigned char *) &dedupTask.fp, &ctx);
+              //openssl sha1
+              //SHA1_Init(&ctx);
+              //SHA1_Update(&ctx, dedupTask.buffer + dedupTask.pos, (uint32_t) dedupTask.length);
+              //SHA1_Final((unsigned char *) &dedupTask.fp, &ctx);
 
-                //isa sha1
+              //isa sha1
 
-                mh_sha1_init(&ctx);
-                mh_sha1_update_avx2(&ctx, dedupTask.buffer + dedupTask.pos, (uint32_t) dedupTask.length);
-                mh_sha1_finalize_avx2(&ctx, &dedupTask.fp);
+              mh_sha1_init(&ctx);
+              mh_sha1_update_avx(&ctx, dedupTask.buffer + dedupTask.pos, (uint32_t) dedupTask.length);
+              mh_sha1_finalize_avx(&ctx, &dedupTask.fp);
 
-                if (dedupTask.countdownLatch) {
-                    printf("HashingPipeline finish\n");
-                    dedupTask.countdownLatch->countDown();
-                    newVersion = true;
-                    gettimeofday(&endTime, NULL);
-                    printf("[CheckPoint:hashing] InitTime:%lu, EndTime:%lu\n",
-                           initTime.tv_sec * 1000000 + initTime.tv_usec, endTime.tv_sec * 1000000 + endTime.tv_usec);
-                }
-                GlobalDeduplicationPipelinePtr->addTask(dedupTask);
+              if (dedupTask.countdownLatch) {
+                printf("HashingPipeline finish\n");
+                dedupTask.countdownLatch->countDown();
+                newVersion = true;
+                gettimeofday(&endTime, NULL);
+                printf("[CheckPoint:hashing] InitTime:%lu, EndTime:%lu\n",
+                       initTime.tv_sec * 1000000 + initTime.tv_usec, endTime.tv_sec * 1000000 + endTime.tv_usec);
+              }
+              GlobalDeduplicationPipelinePtr->addTask(dedupTask);
             }
             taskList.clear();
             gettimeofday(&t1, NULL);

@@ -40,9 +40,12 @@ public:
         if (iter == cacheMap.end()) {
           uint8_t *cacheBuffer = (uint8_t *) malloc(length);
           memcpy(cacheBuffer, buffer, length);
-          cacheMap[sha1Fp] = {
-                  cacheBuffer, length
-          };
+          BlockEntry &tempEntry = cacheMap[sha1Fp];
+          tempEntry.block = cacheBuffer;
+          tempEntry.length = length;
+//          cacheMap[sha1Fp] = {
+//                  cacheBuffer, length
+//          };
         }
       }
     }
@@ -62,13 +65,12 @@ private:
     std::unordered_map<SHA1FP, BlockEntry, TupleHasher, TupleEqualer> cacheMap;
 };
 
-uint64_t threshold = FLAGS_CacheSize * ContainerSize;
-
 class BaseCache {
 public:
     BaseCache() : totalSize(0), index(0), cacheMap(65536), write(0), read(0) {
       preloadBuffer = (uint8_t *) malloc(PreloadSize);
       decompressBuffer = (uint8_t *) malloc(PreloadSize);
+      threshold = FLAGS_CacheSize * ContainerSize;
     }
 
     void setCurrentVersion(uint64_t version) {
@@ -155,21 +157,25 @@ public:
             //MutexLockGuard cacheLockGuard(cacheLock);
             auto iter = cacheMap.find(sha1Fp);
             if (iter == cacheMap.end()) {
-                uint8_t *cacheBuffer = (uint8_t *) malloc(length);
-                memcpy(cacheBuffer, buffer, length);
-                cacheMap[sha1Fp] = {
-                        cacheBuffer, length, index,
-                };
-                items++;
-                write += length;
-                {
-                    //MutexLockGuard lruLockGuard(lruLock);
-                    lruList[index] = sha1Fp;
-                    index++;
-                    totalSize += length;
-                  while (totalSize > threshold) {
-                    auto iterLru = lruList.begin();
-                    assert(iterLru != lruList.end());
+              uint8_t *cacheBuffer = (uint8_t *) malloc(length);
+              memcpy(cacheBuffer, buffer, length);
+              BlockEntry &tempEntry = cacheMap[sha1Fp];
+              tempEntry.block = cacheBuffer;
+              tempEntry.length = length;
+              tempEntry.lastVisit = index;
+//                cacheMap[sha1Fp] = {
+//                        cacheBuffer, length, index,
+//                };
+              items++;
+              write += length;
+              {
+                //MutexLockGuard lruLockGuard(lruLock);
+                lruList[index] = sha1Fp;
+                index++;
+                totalSize += length;
+                while (totalSize > threshold) {
+                  auto iterLru = lruList.begin();
+                  assert(iterLru != lruList.end());
                     auto iterCache = cacheMap.find(iterLru->second);
                     assert(iterCache != cacheMap.end());
                     totalSize -= iterCache->second.length;
@@ -303,6 +309,8 @@ private:
     uint64_t prefetching = 0;
 
     uint64_t ReadBeforeWrite = 0;
+
+    uint64_t threshold = 0;
 };
 
 #endif //MEGA_BASECACHE_H

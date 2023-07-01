@@ -28,10 +28,15 @@ int ReplaceThreshold = 10;
 extern uint64_t TotalVersion;
 extern std::string KVPath;
 
+DEFINE_int32(OdessShiftBits,
+             1, "OdessShiftBits");
+DEFINE_uint64(OdessMask,
+              0x0000400303410000, "OdessShiftBits");
+
 struct TupleHasher {
     std::size_t
     operator()(const SHA1FP &key) const {
-        return key.fp1;
+      return key.fp1;
     }
 };
 
@@ -131,6 +136,7 @@ void odessInit() {
 
         memcpy(&gearMatrix[i], md5_result, sizeof(uint64_t));
     }
+  printf("\n");
 
 //    {
 //        std::default_random_engine randomEngine;
@@ -157,14 +163,14 @@ void odessDeinit(){
 void odessCalculation(uint8_t* buffer, uint64_t length, SimilarityFeatures* similarityFeatures){
     uint64_t hashValue = 0;
     for (uint64_t i = 0; i < length; i++) {
-        hashValue = (hashValue << 1) + gearMatrix[buffer[i]];
-        if (!(hashValue & 0x0000400303410000)) { // sampling mask
-            for (int j = 0; j < 12; j++) {
-                uint64_t transResult = (hashValue * kArray[j] + bArray[j]);
-                if (transResult > maxList[j])
-                    maxList[j] = transResult;
-            }
+      hashValue = (hashValue << FLAGS_OdessShiftBits) + gearMatrix[buffer[i]];
+      if (!(hashValue & FLAGS_OdessMask)) { // sampling mask
+        for (int j = 0; j < 12; j++) {
+          uint64_t transResult = (hashValue * kArray[j] + bArray[j]);
+          if (transResult > maxList[j])
+            maxList[j] = transResult;
         }
+      }
     }
 
     similarityFeatures->feature1 = XXH64(&maxList[0 * 4], sizeof(uint64_t) * 4, 0x7fcaf1);

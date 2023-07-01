@@ -90,13 +90,16 @@ int do_restore(uint64_t version, uint64_t fallBehind) {
 }
 
 int do_arrangement(){
-    printf("Arrangement Task: Version %lu\n", TotalVersion-1);
-    CountdownLatch arrangementLatch(1);
-    ArrangementTask arrangementTask = {
-            TotalVersion - 1, &arrangementLatch,
-    };
-    GlobalArrangementReadPipelinePtr->addTask(&arrangementTask);
-    arrangementLatch.wait();
+  printf("Arrangement Task: Version %lu\n", TotalVersion - 1);
+  CountdownLatch arrangementLatch(1);
+  ArrangementTask arrangementTask;
+  arrangementTask.arrangementVersion = TotalVersion - 1;
+  arrangementTask.countdownLatch = &arrangementLatch;
+//    ArrangementTask arrangementTask = {
+//            TotalVersion - 1, &arrangementLatch,
+//    };
+  GlobalArrangementReadPipelinePtr->addTask(&arrangementTask);
+  arrangementLatch.wait();
 }
 
 int do_delete(){

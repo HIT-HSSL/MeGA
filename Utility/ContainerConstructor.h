@@ -12,6 +12,7 @@
 #include "Likely.h"
 #include <zstd.h>
 #include <atomic>
+#include "lz4.h"
 
 extern std::string ClassFilePath;
 extern std::string VersionFilePath;
@@ -243,27 +244,31 @@ private:
                 }
                 if (unlikely(!runningFlag)) continue;
                 taskAmount--;
-                task = taskList.front();
-                taskList.pop_front();
+              task = taskList.front();
+              taskList.pop_front();
             }
 
-            if (task == NULL) {
-                break;
-            }
+          if (task == NULL) {
+            break;
+          }
 
-            uint8_t *compressBuffer = (uint8_t *) malloc(BufferCapacity);
-            gettimeofday(&ct0, NULL);
-            size_t compressedSize = ZSTD_compress(compressBuffer, BufferCapacity, task->buffer,
-                                                  task->length, 1);
-            gettimeofday(&ct1, NULL);
-            compressionTime += (ct1.tv_sec - ct0.tv_sec) * 1000000 + ct1.tv_usec - ct0.tv_usec;
-            assert(!ZSTD_isError(compressedSize));
+          uint8_t *compressBuffer = (uint8_t *) malloc(BufferCapacity);
+          gettimeofday(&ct0, NULL);
+//            size_t compressedSize = ZSTD_compress(compressBuffer, BufferCapacity, task->buffer,
+//                                                  task->length, 1);
+//            assert(!ZSTD_isError(compressedSize));
+          int compressedSize = LZ4_compress_default((const char *) task->buffer, (char *) compressBuffer, task->length,
+                                                    BufferCapacity);
+          assert(compressedSize != 0);
+          gettimeofday(&ct1, NULL);
+          compressionTime += (ct1.tv_sec - ct0.tv_sec) * 1000000 + ct1.tv_usec - ct0.tv_usec;
 
-            sizeBeforeCompression += task->length;
-            sizeAfterCompression += compressedSize;
 
-            task->compressed = compressBuffer;
-            task->compressedLength = compressedSize;
+          sizeBeforeCompression += task->length;
+          sizeAfterCompression += compressedSize;
+
+          task->compressed = compressBuffer;
+          task->compressedLength = compressedSize;
 
             offlineWriter.addTask(task);
         }

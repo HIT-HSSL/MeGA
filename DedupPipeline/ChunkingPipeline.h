@@ -81,8 +81,20 @@ private:
             chunkMask = 0x0000d90703530000;//16
             chunkMask2 = 0x0000590003530000;//1
         } else if (FLAGS_ExpectSize == 16384) {
-            chunkMask = 0x0000d90f13530000;//64
-            chunkMask2 = 0x0000d90103530000;//4
+          chunkMask = 0x0000d90f13530000;//64
+          chunkMask2 = 0x0000d90103530000;//4
+        } else if (FLAGS_ExpectSize == 2048) {
+          chunkMask = 0x0000d80703530000;//8
+          chunkMask2 = 0x0000580003530000;//0.5
+        } else if (FLAGS_ExpectSize == 1024) {
+          chunkMask = 0x0000d80702530000;//4
+          chunkMask2 = 0x0000580002530000;//0.25
+        } else if (FLAGS_ExpectSize == 512) {
+          chunkMask = 0x0000d80502530000;//2
+          chunkMask2 = 0x0000480002530000;//0.125
+        } else if (FLAGS_ExpectSize == 256) {
+          chunkMask = 0x0000d80102530000;//1
+          chunkMask2 = 0x0000480002130000;//0.0625
         }
 
         uint64_t counter = 0;
