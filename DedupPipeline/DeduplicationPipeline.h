@@ -16,14 +16,15 @@
 #include <assert.h>
 #include "../Utility/Likely.h"
 #include "../Utility/xdelta3.h"
-#include "../Utility/BaseCache.h"
+//#include "../Utility/BaseCache.h"
+#include "../Utility/BaseCache2.h"
 
 struct BaseChunkPositions {
     uint64_t category: 22;
     uint64_t quantizedOffset: 42;
 };
 
-DEFINE_uint64(CappingThreshold,
+DEFINE_uint64(DeltaSelectorThreshold,
               10, "CappingThreshold");
 
 extern bool DeltaSwitch;
@@ -46,6 +47,7 @@ public:
         receiveList.push_back(dedupTask);
         taskAmount++;
         condition.notifyAll();
+      return 0;
     }
 
     ~DeduplicationPipeline() {
@@ -106,12 +108,14 @@ private:
                 segmentLength += dedupTask.length;
                 if (segmentLength > SegmentThreshold || dedupTask.countdownLatch) {
 
-                    processingWaitingList(detectList);
-                    cappingBaseChunks(detectList);
-                    doDedup(detectList);
+                  processingWaitingList(detectList);
+                  cappingBaseChunks(detectList);
+                  doDedup(detectList);
 
-                    segmentLength = 0;
-                    detectList.clear();
+                  baseCache.checkThreshold();
+
+                  segmentLength = 0;
+                  detectList.clear();
                 }
             }
             taskList.clear();
@@ -120,8 +124,8 @@ private:
     }
 
     void processingWaitingList(std::list<DedupTask> &dl) {
-        BasePos tempBasePos;
-        BlockEntry tempBlockEntry;
+      BasePos tempBasePos;
+      BlockEntry2 tempBlockEntry;
         for (auto &entry: dl) {
 
             FPTableEntry fpTableEntry;
@@ -137,7 +141,7 @@ private:
                                                                                            &tempBasePos);
                 }
                 if (similarLookupResult == LookupResult::Similar) {
-                    int r = baseCache.getRecord(&tempBasePos, &tempBlockEntry);
+                  int r = baseCache.findRecord(entry.similarityFeatures);
                     entry.lookupResult = similarLookupResult;
                     entry.basePos = tempBasePos;
                     entry.inCache = r;
@@ -173,9 +177,9 @@ private:
             }
         }
         for (auto &entry: baseChunkPositions) {
-            if (entry.second < FLAGS_CappingThreshold) {
-                entry.second = 0;
-            }
+          if (entry.second < FLAGS_DeltaSelectorThreshold) {
+            entry.second = 0;
+          }
         }
         for (auto &entry: dl) {
             if (entry.lookupResult == LookupResult::Similar && entry.inCache == 0) {
@@ -192,9 +196,9 @@ private:
     }
 
     void doDedup(std::list<DedupTask> &dl) {
-        WriteTask writeTask;
-        BlockEntry tempBlockEntry;
-        struct timeval t0, t1, dt1, dt2;
+      WriteTask writeTask;
+      BlockEntry2 tempBlockEntry;
+      struct timeval t0, t1, dt1, dt2;
 
         for (auto &entry: dl) {
             gettimeofday(&t0, NULL);
@@ -225,21 +229,22 @@ private:
                 if (similarLookupResult == LookupResult::Similar && !entry.deltaReject) {
                     lookupResult = LookupResult::Dissimilar;
                     int r;
-                    r = baseCache.getRecordWithoutFresh(&entry.basePos, &tempBlockEntry);
+                  r = baseCache.getRecord(&entry.basePos, &tempBlockEntry);
                     if (!r) {
-                        baseCache.loadBaseChunks(entry.basePos);
-                        r = baseCache.getRecordNoFS(&entry.basePos, &tempBlockEntry);
+                      baseCache.loadBaseChunks(entry.basePos);
+                      r = baseCache.getRecord(&entry.basePos, &tempBlockEntry);
                         assert(r);
                     }
 
                     // calculate delta
-                    uint8_t *tempBuffer = (uint8_t *) malloc(65536);
-                    usize_t deltaSize;
+                  uint8_t *tempBuffer = (uint8_t *) malloc(65536);
+                  usize_t deltaSize = 0;
                     gettimeofday(&dt1, NULL);
+                  uint8_t *targetPtr = (uint8_t *) entry.buffer + entry.pos;
 
-                    r = xd3_encode_memory(entry.buffer + entry.pos, entry.length,
-                                          tempBlockEntry.block, tempBlockEntry.length, tempBuffer, &deltaSize,
-                                          entry.length, XD3_COMPLEVEL_1);
+                  r = xd3_encode_memory(targetPtr, entry.length,
+                                        tempBlockEntry.block, tempBlockEntry.length, tempBuffer, &deltaSize,
+                                        65536, XD3_COMPLEVEL_1);
 //                    if (tempBlockEntry.length >= entry.length) {
 //                        r = xd3_encode_memory(entry.buffer + entry.pos, entry.length,
 //                                              tempBlockEntry.block, entry.length, tempBuffer, &deltaSize,
@@ -297,9 +302,10 @@ private:
                     GlobalMetadataManagerPtr->addSimilarFeature(entry.similarityFeatures,
                                                                 {entry.fp, (uint32_t) entry.fileID,
                                                                  lastCategoryLength, entry.length});
-                    writeTask.similarityFeatures = entry.similarityFeatures;
-                    baseCache.addRecord(writeTask.sha1Fp, writeTask.buffer + writeTask.pos, writeTask.length);
-                    lastCategoryLength += entry.length + sizeof(BlockHeader);
+                  writeTask.similarityFeatures = entry.similarityFeatures;
+                  baseCache.addRecentRecord(writeTask.sha1Fp, writeTask.buffer + writeTask.pos, writeTask.length,
+                                            entry.similarityFeatures);
+                  lastCategoryLength += entry.length + sizeof(BlockHeader);
                 }
                 afterDedupLength += entry.length;
             } else if (lookupResult == LookupResult::InternalDedup) {
@@ -337,7 +343,8 @@ private:
                 writeTask.countdownLatch = entry.countdownLatch;
                 entry.countdownLatch->countDown();
                 //GlobalMetadataManagerPtr->tableRolling();
-                newVersionFlag = true;
+              newVersionFlag = true;
+              baseCache.endCurrentContainer();
 
                 GlobalWriteFilePipelinePtr->addTask(writeTask);
             } else {
@@ -358,7 +365,7 @@ private:
     MutexLock mutexLock;
     Condition condition;
 
-    BaseCache baseCache;
+    BaseCache2 baseCache;
 
     uint64_t totalLength = 0;
     uint64_t afterDedupLength = 0;

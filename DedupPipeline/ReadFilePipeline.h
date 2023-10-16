@@ -28,6 +28,7 @@ public:
         taskList.push_back(storageTask);
         taskAmount++;
         condition.notify();
+        return 0;
     }
 
     ~ReadFilePipeline() {

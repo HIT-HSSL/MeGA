@@ -52,6 +52,7 @@ private:
             fileOperator->fdatasync();
             counter = 0;
         }
+        return 0;
     }
 
     int flush_old() {
@@ -62,6 +63,7 @@ private:
             fileOperator->fdatasync();
             counter = 0;
         }
+      return 0;
     }
 
     uint64_t bufferSize;

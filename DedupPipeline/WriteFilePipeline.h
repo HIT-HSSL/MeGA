@@ -33,6 +33,7 @@ public:
         receiveList.push_back(writeTask);
         taskAmount++;
         condition.notify();
+        return 0;
     }
 
     ~WriteFilePipeline() {

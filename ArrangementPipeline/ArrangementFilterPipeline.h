@@ -27,6 +27,7 @@ public:
         taskList.push_back(arrangementFilterTask);
         taskAmount++;
         condition.notify();
+        return 0;
     }
 
     ~ArrangementFilterPipeline() {

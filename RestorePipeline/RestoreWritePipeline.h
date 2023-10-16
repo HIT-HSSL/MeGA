@@ -24,6 +24,7 @@ public:
         taskList.push_back(task);
         taskAmount++;
         condition.notify();
+        return 0;
     }
 
     ~FileFlusher(){
@@ -80,11 +81,12 @@ public:
         taskList.push_back(restoreWriteTask);
         taskAmount++;
         condition.notify();
+      return 0;
     }
 
     ~RestoreWritePipeline() {
-        printf("write amplification: %f\n", (float) extraIO / normalIO);.
-        printf("restore write duration :%lu\n", duration);
+      printf("write amplification: %f\n", (float) extraIO / normalIO);
+      printf("restore write duration :%lu\n", duration);
         printf("read time:%lu, decoding time:%lu\n", readTime, decodingTime);
         printf("total chunks:%lu, delta chunks:%lu\n", chunkCounter, deltaCounter);
         runningFlag = false;
@@ -97,6 +99,7 @@ public:
         if (fileOperator){
             fileOperator->trunc(size);
         }
+      return 0;
     }
 
     uint64_t getTotalSize(){

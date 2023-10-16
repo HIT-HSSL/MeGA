@@ -120,6 +120,7 @@ public:
 
     int releaseBufferedData() {
         posix_fadvise(file->_fileno, 0, 0, POSIX_FADV_DONTNEED);
+        return 0;
     }
 
     uint64_t getSize() {

@@ -27,6 +27,7 @@ public:
         taskList.push_back(arrangementTask);
         taskAmount++;
         condition.notify();
+        return 0;
     }
 
     ~ArrangementReadPipeline() {
@@ -102,6 +103,7 @@ private:
             ArrangementFilterTask* arrangementFilterTask = new ArrangementFilterTask(buffer, readSize, classId, versionId);
             GlobalArrangementFilterPipelinePtr->addTask(arrangementFilterTask);
         }
+      return 0;
     }
 
     uint64_t readClassWithAppend(uint64_t classId, uint64_t versionId){
@@ -138,6 +140,7 @@ private:
 
         ArrangementFilterTask* arrangementFilterTask = new ArrangementFilterTask(true, classId);
         GlobalArrangementFilterPipelinePtr->addTask(arrangementFilterTask);
+      return 0;
     }
 
     uint64_t getClassFileSize(uint64_t classId){

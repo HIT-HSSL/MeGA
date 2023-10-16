@@ -36,16 +36,18 @@ public:
 
         printf("processing volume files\n");
         for (uint64_t i = 2; i <= maxVersion - 1; i++) {
-            versionFileProcessor(i);
+          versionFileProcessor(i);
         }
 
-        printf("processing recipe files\n");
-        for (uint64_t i = 2; i <= maxVersion; i++) {
-            recipeFilesProcessor(i);
-        }
-        GlobalMetadataManagerPtr->similarityTableMerge();
-        printf("Similarity Feature Tables have been updated..\n");
-        printf("finish, the earliest version has been eliminated..\n");
+      printf("processing recipe files\n");
+      for (uint64_t i = 2; i <= maxVersion; i++) {
+        recipeFilesProcessor(i);
+      }
+      GlobalMetadataManagerPtr->similarityTableMerge();
+      printf("Similarity Feature Tables have been updated..\n");
+      printf("finish, the earliest version has been eliminated..\n");
+
+      return 0;
     }
 
 private:

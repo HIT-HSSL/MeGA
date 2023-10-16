@@ -116,6 +116,7 @@ private:
         taskList.push_back(classId);
         taskAmount++;
         condition.notify();
+      return 0;
     }
 
     void ChunkWriterManagerCallback(){

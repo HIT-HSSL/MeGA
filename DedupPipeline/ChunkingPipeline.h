@@ -51,6 +51,7 @@ public:
         taskList.push_back(chunkTask);
         taskAmount++;
         condition.notify();
+        return 0;
     }
 
     void getStatistics() {

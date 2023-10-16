@@ -31,6 +31,7 @@ public:
         taskList.push_back(restoreTask);
         taskAmount++;
         condition.notify();
+        return 0;
     }
 
     ~RestoreReadPipeline() {
@@ -140,15 +141,17 @@ private:
             leftLength += offset[i];
         }
 
-        for (auto iter = categoryList.begin(); iter != categoryList.end(); iter++) {
-            uint8_t *ptr = (uint8_t *) malloc(iter->length);
-            versionReader.pread(ptr, iter->offset, iter->length);
-            RestoreParseTask *restoreParseTask = new RestoreParseTask(ptr, iter->length);
-            restoreParseTask->index = versionId;
-            GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
-        }
+      for (auto iter = categoryList.begin(); iter != categoryList.end(); iter++) {
+        uint8_t *ptr = (uint8_t *) malloc(iter->length);
+        versionReader.pread(ptr, iter->offset, iter->length);
+        RestoreParseTask *restoreParseTask = new RestoreParseTask(ptr, iter->length);
+        restoreParseTask->index = versionId;
+        GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
+      }
 
-        free(readBuffer);
+      free(readBuffer);
+
+      return 0;
     }
 
 
@@ -163,6 +166,7 @@ private:
         RestoreParseTask *restoreParseTask = new RestoreParseTask(readBuffer, leftLength);
         restoreParseTask->index = classId;
         GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
+      return 0;
     }
 
     int readFromAppendCategoryFile(uint64_t classId) {
@@ -181,6 +185,7 @@ private:
         }else{
             printf("Append file not exists, ignore it.\n");
         }
+      return 0;
     }
 
 
