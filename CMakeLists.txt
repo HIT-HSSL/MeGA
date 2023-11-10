@@ -13,8 +13,8 @@ aux_source_directory(Rollhash Rollhash)
 add_subdirectory(gflags-2.2.2)
 add_subdirectory(xdelta)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 
 link_libraries(gflags::gflags isal_crypto pthread crypto jemalloc zstd xdelta)
 
-add_executable(MeGA main.cpp ${Utility} ${RollHash} ${MetadataManager} ${Pipeline} ${RestorePipeline} ${ArrangementPipeline} ${Rollhash})
+add_executable(MeGA main.cpp ${Utility} ${RollHash} ${MetadataManager} ${Pipeline} ${RestorePipeline} ${ArrangementPipeline} ${Rollhash} Utility/BaseCache2.h)

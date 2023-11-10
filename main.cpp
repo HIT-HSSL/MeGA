@@ -11,7 +11,6 @@
 #include "DedupPipeline/ReadFilePipeline.h"
 #include "RestorePipeline/RestoreReadPipeline.h"
 #include "DedupPipeline/Eliminator.h"
-#include "gflags/gflags.h"
 #include "Utility/Config.h"
 #include "Utility/Manifest.h"
 #include "ArrangementPipeline/ArrangementReadPipeline.h"

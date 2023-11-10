@@ -16,7 +16,8 @@
 #include <assert.h>
 #include "../Utility/Likely.h"
 #include "../xdelta/xdelta3.h"
-#include "../Utility/BaseCache.h"
+//#include "../Utility/BaseCache.h"
+#include "../Utility/BaseCache2.h"
 
 struct BaseChunkPositions {
     uint64_t category: 22;
@@ -110,8 +111,10 @@ private:
                   deltaSelector(detectList);
                   doDedup(detectList);
 
-                    segmentLength = 0;
-                    detectList.clear();
+                  baseCache.checkThreshold();
+
+                  segmentLength = 0;
+                  detectList.clear();
                 }
             }
             taskList.clear();
@@ -120,8 +123,8 @@ private:
     }
 
     void processingWaitingList(std::list<DedupTask> &dl) {
-        BasePos tempBasePos;
-        BlockEntry tempBlockEntry;
+      BasePos tempBasePos;
+      BlockEntry2 tempBlockEntry;
         for (auto &entry: dl) {
 
             FPTableEntry fpTableEntry;
@@ -137,7 +140,7 @@ private:
                                                                                            &tempBasePos);
                 }
                 if (similarLookupResult == LookupResult::Similar) {
-                    int r = baseCache.getRecord(&tempBasePos, &tempBlockEntry);
+                  int r = baseCache.findRecord(entry.similarityFeatures);
                     entry.lookupResult = similarLookupResult;
                     entry.basePos = tempBasePos;
                     entry.inCache = r;
@@ -192,9 +195,9 @@ private:
     }
 
     void doDedup(std::list<DedupTask> &dl) {
-        WriteTask writeTask;
-        BlockEntry tempBlockEntry;
-        struct timeval t0, t1, dt1, dt2;
+      WriteTask writeTask;
+      BlockEntry2 tempBlockEntry;
+      struct timeval t0, t1, dt1, dt2;
 
         for (auto &entry: dl) {
             gettimeofday(&t0, NULL);
@@ -225,16 +228,11 @@ private:
                 if (similarLookupResult == LookupResult::Similar && !entry.deltaReject) {
                     lookupResult = LookupResult::Dissimilar;
                     int r;
-                    r = baseCache.getRecordWithoutFresh(&entry.basePos, &tempBlockEntry);
+                  r = baseCache.getRecord(&entry.basePos, &tempBlockEntry);
                     if (!r) {
-                        if (entry.basePos.CategoryOrder == entry.fileID && entry.basePos.cid == currentCID) {
-                            r = containerCache.getRecord(&entry.basePos, &tempBlockEntry);
-                            assert(r);
-                        } else {
-                            baseCache.loadBaseChunks(entry.basePos);
-                            r = baseCache.getRecordNoFS(&entry.basePos, &tempBlockEntry);
-                            assert(r);
-                        }
+                      baseCache.loadBaseChunks(entry.basePos);
+                      r = baseCache.getRecord(&entry.basePos, &tempBlockEntry);
+                      assert(r);
                     }
 
                     // calculate delta
@@ -278,8 +276,8 @@ private:
                         lastCategoryLength += deltaSize + sizeof(BlockHeader);
                         if (lastCategoryLength >= ContainerSize) {
                             lastCategoryLength = 0;
-                            currentCID++;
-                            containerCache.clear();
+                          currentCID++;
+                          baseCache.endCurrentContainer();
                         }
                         chunkCounter[3]++;
                         afterDelta += deltaSize;
@@ -293,14 +291,14 @@ private:
                     GlobalMetadataManagerPtr->addSimilarFeature(entry.similarityFeatures,
                                                                 {entry.fp, (uint32_t) entry.fileID,
                                                                  currentCID, entry.length});
-                    writeTask.similarityFeatures = entry.similarityFeatures;
-                    baseCache.addRecord(writeTask.sha1Fp, writeTask.buffer + writeTask.pos, writeTask.length);
-                    containerCache.addRecord(writeTask.sha1Fp, writeTask.buffer + writeTask.pos, writeTask.length);
-                    lastCategoryLength += entry.length + sizeof(BlockHeader);
+                  writeTask.similarityFeatures = entry.similarityFeatures;
+                  baseCache.addRecentRecord(writeTask.sha1Fp, writeTask.buffer + writeTask.pos, writeTask.length,
+                                            entry.similarityFeatures);
+                  lastCategoryLength += entry.length + sizeof(BlockHeader);
                     if (lastCategoryLength >= ContainerSize) {
                         lastCategoryLength = 0;
-                        currentCID++;
-                        containerCache.clear();
+                      currentCID++;
+                      baseCache.endCurrentContainer();
                     }
                     afterDelta += entry.length;
                 }
@@ -340,8 +338,9 @@ private:
                 //GlobalMetadataManagerPtr->tableRolling();
                 newVersionFlag = true;
                 gettimeofday(&endTime, NULL);
-                printf("[CheckPoint:dedup] InitTime:%lu, EndTime:%lu\n", initTime.tv_sec * 1000000 + initTime.tv_usec,
-                       endTime.tv_sec * 1000000 + endTime.tv_usec);
+              printf("[CheckPoint:dedup] InitTime:%lu, EndTime:%lu\n", initTime.tv_sec * 1000000 + initTime.tv_usec,
+                     endTime.tv_sec * 1000000 + endTime.tv_usec);
+              baseCache.endCurrentContainer();
 
                 GlobalWriteFilePipelinePtr->addTask(writeTask);
             } else {
@@ -362,8 +361,7 @@ private:
     MutexLock mutexLock;
     Condition condition;
 
-    BaseCache baseCache;
-    ContainerCache containerCache;
+    BaseCache2 baseCache;
 
     uint64_t totalLength = 0;
     uint64_t afterDedup = 0;
