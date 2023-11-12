@@ -254,6 +254,7 @@ public:
       items++;
 
       lruList[index] = cid;
+      cacheMap[cid].lastVisit = index;
       index++;
       totalSize += currentContainer.totalSize;
 
@@ -283,8 +284,12 @@ private:
       cacheMap[cid].score++;
       if (cacheMap[cid].score > UpdateScore) {
         cacheMap[cid].score = 0;
+//        auto testIter = cacheMap.find(cid);
+//        assert(testIter != cacheMap.end());
+//        printf("[read] cid:%lu, lastVisit: %lu\n", cid, cacheMap[cid].lastVisit);
         auto iter_l = lruList.find(cacheMap[cid].lastVisit);
         lruList[index] = iter_l->second;
+//        printf("[write] cid:%lu, old: %lu, new: %lu\n", iter_l->second, cacheMap[cid].lastVisit, index);
         lruList.erase(iter_l);
         cacheMap[cid].lastVisit = index;
         index++;
