@@ -153,15 +153,12 @@ public:
       uint64_t targetCategory;
 
       if (basePos.CategoryOrder == currentVersion) {
-        targetCategory = (currentVersion - 1) * (currentVersion) / 2 + basePos.CategoryOrder;
-        sprintf(pathBuffer, ClassFilePath.data(), targetCategory);
+        sprintf(pathBuffer, ClassFilePath.data(), basePos.CategoryOrder, currentVersion, basePos.cid);
         selfHit++;
       } else if (basePos.CategoryOrder) {
-        targetCategory = (currentVersion - 2) * (currentVersion - 1) / 2 + basePos.CategoryOrder;
-        sprintf(pathBuffer, ClassFilePath.data(), targetCategory);
+        sprintf(pathBuffer, ClassFilePath.data(), basePos.CategoryOrder, currentVersion - 1, basePos.cid);
       } else {
-        targetCategory = (currentVersion - 2) * (currentVersion - 1) / 2 + 1;
-        sprintf(pathBuffer, ClassFileAppendPath.data(), targetCategory);
+        sprintf(pathBuffer, ClassFileAppendPath.data(), 1, currentVersion - 1, basePos.cid);
       }
 
       uint64_t readSize = 0;
@@ -170,7 +167,8 @@ public:
         readSize = basefile.read(decompressBuffer, PreloadSize);
         basefile.releaseBufferedData();
 
-        readSize = ZSTD_decompress(preloadBuffer, PreloadSize, decompressBuffer, PreloadSize);
+        readSize = ZSTD_decompress(preloadBuffer, PreloadSize, decompressBuffer, readSize);
+        assert(!ZSTD_isError(readSize));
         assert(basePos.length <= readSize);
       }
 
@@ -179,7 +177,13 @@ public:
       uint64_t preLoadPos = 0;
       uint64_t leftLength = readSize;
 
-      ContainerCacheEntry &newContainerCache = cacheMap[basePos.CategoryOrder];
+      uint64_t cacheID = basePos.CategoryOrder;
+      cacheID = (cacheID << 32) + cid;
+      ContainerCacheEntry &newContainerCache = cacheMap[cacheID];
+      cacheMap[cacheID].lastVisit = index;
+      lruList[index] = cacheID;
+//      printf("[reload] cid:%lu, lastVisit: %lu\n", cacheID, index);
+      index++;
 
       while (leftLength > sizeof(BlockHeader) &&
              leftLength >= (2048 + sizeof(BlockHeader))) {// todo: min chunksize configured to 2048
@@ -207,19 +211,17 @@ public:
       return 0;
     }
 
-    int findRecord(const SimilarityFeatures &features) {
-      SHA1FP sha1Fp;
-
+    int findRecord(const SimilarityFeatures &features, SHA1FP *targetChunk) {
       access++;
 
-      int r = currentContainer.findRecord(features, &sha1Fp);
+      int r = currentContainer.findRecord(features, targetChunk);
       if (r == 1) {
         success++;
         return r;
       }
 
       for (const auto &table: cacheMap) {
-        r = table.second.findRecord(features, &sha1Fp);
+        r = table.second.findRecord(features, targetChunk);
         if (r == 1) {
           success++;
           return r;
@@ -248,13 +250,15 @@ public:
     }
 
     int endCurrentContainer() {
-      cacheMap[cid].move(currentContainer);
+      uint64_t cacheID = (currentVersion << 32) + cid;
+      cacheMap[cacheID].move(currentContainer);
       currentContainer.clear();
       write += currentContainer.totalSize;
       items++;
 
-      lruList[index] = cid;
-      cacheMap[cid].lastVisit = index;
+      lruList[index] = cacheID;
+      cacheMap[cacheID].lastVisit = index;
+//      printf("[new] cid:%lu, lastVisit: %lu\n", cacheID, index);
       index++;
       totalSize += currentContainer.totalSize;
 
@@ -309,7 +313,7 @@ private:
     uint64_t currentVersion = 0;
     uint64_t selfHit = 0;
 
-    uint64_t cid = 0;
+    uint32_t cid = 0;
 
     uint8_t *preloadBuffer;
     uint8_t *decompressBuffer;

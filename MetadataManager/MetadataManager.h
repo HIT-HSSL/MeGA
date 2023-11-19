@@ -195,25 +195,42 @@ public:
             }
         }
 
-        laterTable.totalSize += chunkSize + sizeof(BlockHeader);
-        auto neighborDedupIter = earlierTable.fpTable.find(sha1Fp);
-        if (neighborDedupIter == earlierTable.fpTable.end()) {
-            return LookupResult::Unique;
-        } else {
-            laterTable.migrateSize += chunkSize + sizeof(BlockHeader);
-            *fpTableEntry = neighborDedupIter->second;
-            return LookupResult::AdjacentDedup;
-        }
+      laterTable.totalSize += chunkSize + sizeof(BlockHeader);
+      auto neighborDedupIter = earlierTable.fpTable.find(sha1Fp);
+      if (neighborDedupIter == earlierTable.fpTable.end()) {
+        return LookupResult::Unique;
+      } else {
+        laterTable.migrateSize += chunkSize + sizeof(BlockHeader);
+        *fpTableEntry = neighborDedupIter->second;
+        return LookupResult::AdjacentDedup;
+      }
     }
 
+    int getBasePos(const SHA1FP &sha1Fp, uint64_t chunkSize, FPTableEntry *fpTableEntry) {
+      MutexLockGuard mutexLockGuard(tableLock);
+      auto innerDedupIter = laterTable.fpTable.find(sha1Fp);
+      if (innerDedupIter != laterTable.fpTable.end()) {
+        assert(!innerDedupIter->second.deltaTag);
+        return 1;
+      }
+
+      auto neighborDedupIter = earlierTable.fpTable.find(sha1Fp);
+      if (neighborDedupIter != earlierTable.fpTable.end()) {
+        *fpTableEntry = neighborDedupIter->second;
+        return 1;
+      }
+      return 0;
+    }
+
+
     LookupResult similarityLookupSimple(const SimilarityFeatures &similarityFeatures, BasePos *basePos) {
-        auto iter1 = earlierSimilarityTable.simIndex1.find(similarityFeatures.feature1);
-        if (iter1 != earlierSimilarityTable.simIndex1.end()) {
-            *basePos = iter1->second;
-            return LookupResult::Similar;
-        }
-        auto iter2 = earlierSimilarityTable.simIndex2.find(similarityFeatures.feature2);
-        if (iter2 != earlierSimilarityTable.simIndex2.end()) {
+      auto iter1 = earlierSimilarityTable.simIndex1.find(similarityFeatures.feature1);
+      if (iter1 != earlierSimilarityTable.simIndex1.end()) {
+        *basePos = iter1->second;
+        return LookupResult::Similar;
+      }
+      auto iter2 = earlierSimilarityTable.simIndex2.find(similarityFeatures.feature2);
+      if (iter2 != earlierSimilarityTable.simIndex2.end()) {
             *basePos = iter2->second;
             return LookupResult::Similar;
         }

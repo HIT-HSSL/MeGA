@@ -13,7 +13,7 @@ aux_source_directory(Rollhash Rollhash)
 add_subdirectory(gflags-2.2.2)
 add_subdirectory(xdelta)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O3")
 
 link_libraries(gflags::gflags isal_crypto pthread crypto jemalloc zstd xdelta)
 

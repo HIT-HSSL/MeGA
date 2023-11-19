@@ -140,11 +140,11 @@ private:
                                                                                            &tempBasePos);
                 }
                 if (similarLookupResult == LookupResult::Similar) {
-                  int r = baseCache.findRecord(entry.similarityFeatures);
-                    entry.lookupResult = similarLookupResult;
-                    entry.basePos = tempBasePos;
-                    entry.inCache = r;
-
+                  SHA1FP targetChunk;
+                  int r = baseCache.findRecord(entry.similarityFeatures, &targetChunk);
+                  entry.lookupResult = similarLookupResult;
+                  entry.basePos = tempBasePos;
+                  entry.inCache = r;
                 } else {
                     // unique
                     // do nothing
@@ -220,28 +220,37 @@ private:
 
             if (lookupResult == LookupResult::Unique) {
                 afterDedup += entry.length;
-                LookupResult similarLookupResult = LookupResult::Dissimilar;
+              LookupResult similarLookupResult = LookupResult::Dissimilar;
+              int cacheSearch;
                 if (DeltaSwitch) {
+                  cacheSearch = baseCache.findRecord(entry.similarityFeatures, &(entry.basePos.sha1Fp));
+                  if (cacheSearch) {
+                    similarLookupResult = LookupResult::Similar;
+                  } else {
                     similarLookupResult = GlobalMetadataManagerPtr->similarityLookupSimple(entry.similarityFeatures,
                                                                                            &entry.basePos);
+                  }
+
                 }
                 if (similarLookupResult == LookupResult::Similar && !entry.deltaReject) {
-                    lookupResult = LookupResult::Dissimilar;
-                    int r;
-                  r = baseCache.getRecord(&entry.basePos, &tempBlockEntry);
+                  int r;
+                  if (r == 0) {
+                    r = baseCache.getRecord(&entry.basePos, &tempBlockEntry);
                     if (!r) {
                       baseCache.loadBaseChunks(entry.basePos);
                       r = baseCache.getRecord(&entry.basePos, &tempBlockEntry);
                       assert(r);
                     }
+                  }
 
-                    // calculate delta
-                    uint8_t *tempBuffer = (uint8_t *) malloc(65536);
-                    usize_t deltaSize;
-                    gettimeofday(&dt1, NULL);
 
-                    r = xd3_encode_memory(entry.buffer + entry.pos, entry.length,
-                                          tempBlockEntry.block, tempBlockEntry.length, tempBuffer, &deltaSize,
+                  // calculate delta
+                  uint8_t *tempBuffer = (uint8_t *) malloc(65536);
+                  usize_t deltaSize;
+                  gettimeofday(&dt1, NULL);
+
+                  r = xd3_encode_memory(entry.buffer + entry.pos, entry.length,
+                                        tempBlockEntry.block, tempBlockEntry.length, tempBuffer, &deltaSize,
                                           entry.length, XD3_COMPLEVEL_1 | XD3_NOCOMPRESS);
                     gettimeofday(&dt2, NULL);
                     deltaTime += (dt2.tv_sec - dt1.tv_sec) * 1000000 + dt2.tv_usec - dt1.tv_usec;
