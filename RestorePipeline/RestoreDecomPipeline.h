@@ -11,63 +11,63 @@ class RestoreDecomPipeline {
 public:
     RestoreDecomPipeline() : taskAmount(0), runningFlag(true), mutexLock(),
                              condition(mutexLock) {
-        worker = new std::thread(std::bind(&RestoreDecomPipeline::restoreDecompressionCallback, this));
+      worker = new std::thread(std::bind(&RestoreDecomPipeline::restoreDecompressionCallback, this));
     }
 
     int addTask(RestoreParseTask *restoreTask) {
-        MutexLockGuard mutexLockGuard(mutexLock);
-        taskList.push_back(restoreTask);
-        taskAmount++;
-        condition.notify();
+      MutexLockGuard mutexLockGuard(mutexLock);
+      taskList.push_back(restoreTask);
+      taskAmount++;
+      condition.notify();
     }
 
     ~RestoreDecomPipeline() {
-        printf("[RestoreDecom] total: %lu\n", duration);
-        runningFlag = false;
-        condition.notifyAll();
-        worker->join();
+      printf("[RestoreDecom] total: %lu\n", duration);
+      runningFlag = false;
+      condition.notifyAll();
+      worker->join();
     }
 
 private:
     void restoreDecompressionCallback() {
-        pthread_setname_np(pthread_self(), "RDecom");
+      pthread_setname_np(pthread_self(), "RDecom");
 
-        RestoreParseTask *restoreParseTask;
+      RestoreParseTask *restoreParseTask;
 
-        struct timeval t0, t1;
+      struct timeval t0, t1;
 
-        while (likely(runningFlag)) {
-            {
-                MutexLockGuard mutexLockGuard(mutexLock);
-                while (!taskAmount) {
-                    condition.wait();
-                    if (unlikely(!runningFlag)) break;
-                }
-                if (unlikely(!runningFlag)) continue;
-                taskAmount--;
-                restoreParseTask = taskList.front();
-                taskList.pop_front();
-            }
-
-            if (restoreParseTask->endFlag) {
-                GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
-                continue;
-            }
-
-            gettimeofday(&t0, NULL);
-            uint8_t *decomBuffer = (uint8_t *) malloc(RestoreReadBufferLength);
-            size_t decompressedSize = ZSTD_decompress(decomBuffer, RestoreReadBufferLength, restoreParseTask->buffer,
-                                                      restoreParseTask->length);
-            assert(!ZSTD_isError(decompressedSize));
-            free(restoreParseTask->buffer);
-            restoreParseTask->buffer = decomBuffer;
-            restoreParseTask->length = decompressedSize;
-
-            gettimeofday(&t1, NULL);
-            duration += (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
-
-            GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
+      while (likely(runningFlag)) {
+        {
+          MutexLockGuard mutexLockGuard(mutexLock);
+          while (!taskAmount) {
+            condition.wait();
+            if (unlikely(!runningFlag)) break;
+          }
+          if (unlikely(!runningFlag)) continue;
+          taskAmount--;
+          restoreParseTask = taskList.front();
+          taskList.pop_front();
         }
+
+        if (restoreParseTask->endFlag) {
+          GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
+          continue;
+        }
+
+        gettimeofday(&t0, NULL);
+        uint8_t *decomBuffer = (uint8_t *) malloc(RestoreReadBufferLength);
+        size_t decompressedSize = ZSTD_decompress(decomBuffer, RestoreReadBufferLength, restoreParseTask->buffer,
+                                                  restoreParseTask->length);
+        assert(!ZSTD_isError(decompressedSize));
+        free(restoreParseTask->buffer);
+        restoreParseTask->buffer = decomBuffer;
+        restoreParseTask->length = decompressedSize;
+
+        gettimeofday(&t1, NULL);
+        duration += (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
+
+        GlobalRestoreParserPipelinePtr->addTask(restoreParseTask);
+      }
     }
 
 

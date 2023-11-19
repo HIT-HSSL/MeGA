@@ -41,6 +41,7 @@ public:
       printf("-----------------------Configure-----------------------\n");
       printf("MeGA storage path:%s, RetentionTime:%lu\n", path.data(), rt);
     }
+
 private:
 };
 

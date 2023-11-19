@@ -13,7 +13,7 @@
 #include <map>
 
 DEFINE_uint64(CacheSize,
-              128, "Cache Size");
+128, "Cache Size");
 
 extern std::string ClassFileAppendPath;
 extern uint64_t ContainerSize;
@@ -76,210 +76,210 @@ public:
     }
 
     ~BaseCache() {
-        statistics();
-        free(preloadBuffer);
-        free(decompressBuffer);
-        for (const auto &blockEntry: cacheMap) {
-            free(blockEntry.second.block);
-        }
+      statistics();
+      free(preloadBuffer);
+      free(decompressBuffer);
+      for (const auto &blockEntry: cacheMap) {
+        free(blockEntry.second.block);
+      }
     }
 
-    void statistics(){
-        printf("[BlockCache]\n");
-        printf("cache miss %lu times, total loading time %lu us, average %f us\n", access - success, loadingTime,
-               (float) loadingTime / (access - success));
-        printf("hit rate: %f(%lu/%lu)\n", float(success) / access, success, access);
-        printf("cache write:%lu, cache read:%lu, prefetching size : %lu\n", write, read, prefetching);
-        printf("total size:%lu, items:%lu\n", totalSize, items);
-        printf("self hit:%lu ReadBeforeWrite:%lu\n", selfHit, ReadBeforeWrite);
+    void statistics() {
+      printf("[BlockCache]\n");
+      printf("cache miss %lu times, total loading time %lu us, average %f us\n", access - success, loadingTime,
+             (float) loadingTime / (access - success));
+      printf("hit rate: %f(%lu/%lu)\n", float(success) / access, success, access);
+      printf("cache write:%lu, cache read:%lu, prefetching size : %lu\n", write, read, prefetching);
+      printf("total size:%lu, items:%lu\n", totalSize, items);
+      printf("self hit:%lu ReadBeforeWrite:%lu\n", selfHit, ReadBeforeWrite);
     }
 
-    void loadBaseChunks(const BasePos& basePos) {
-        gettimeofday(&t0, NULL);
-        char pathBuffer[256];
+    void loadBaseChunks(const BasePos &basePos) {
+      gettimeofday(&t0, NULL);
+      char pathBuffer[256];
 
-        int r = 0;
-        uint64_t decompressSize;
-        uint64_t readSize = 0;
+      int r = 0;
+      uint64_t decompressSize;
+      uint64_t readSize = 0;
 
-        if (basePos.CategoryOrder == currentVersion) {
-            sprintf(pathBuffer, ClassFilePath.data(), basePos.CategoryOrder, currentVersion, basePos.cid);
-            r = GlobalWriteFilePipelinePtr->getContainer(basePos.CategoryOrder, currentVersion, basePos.cid,
-                                                         preloadBuffer, &readSize);
-            selfHit++;
-        } else if (basePos.CategoryOrder) {
-            sprintf(pathBuffer, ClassFilePath.data(), basePos.CategoryOrder, currentVersion - 1, basePos.cid);
-        } else {
-            sprintf(pathBuffer, ClassFileAppendPath.data(), 1, currentVersion - 1, basePos.cid);
+      if (basePos.CategoryOrder == currentVersion) {
+        sprintf(pathBuffer, ClassFilePath.data(), basePos.CategoryOrder, currentVersion, basePos.cid);
+        r = GlobalWriteFilePipelinePtr->getContainer(basePos.CategoryOrder, currentVersion, basePos.cid,
+                                                     preloadBuffer, &readSize);
+        selfHit++;
+      } else if (basePos.CategoryOrder) {
+        sprintf(pathBuffer, ClassFilePath.data(), basePos.CategoryOrder, currentVersion - 1, basePos.cid);
+      } else {
+        sprintf(pathBuffer, ClassFileAppendPath.data(), 1, currentVersion - 1, basePos.cid);
+      }
+
+      if (r == 0) {
+        FileOperator basefile(pathBuffer, FileOpenType::Read);
+        decompressSize = basefile.read(decompressBuffer, PreloadSize);
+        basefile.releaseBufferedData();
+
+        prefetching += decompressSize;
+        readSize = ZSTD_decompress(preloadBuffer, PreloadSize, decompressBuffer, decompressSize);
+        assert(!ZSTD_isError(readSize));
+      } else {
+        ReadBeforeWrite++;
+      }
+
+      assert(basePos.length <= readSize);
+
+      BlockHeader *headPtr;
+
+      uint64_t preLoadPos = 0;
+      uint64_t leftLength = readSize;
+
+      while (leftLength > sizeof(BlockHeader)) {// todo: min chunksize configured to 2048
+        headPtr = (BlockHeader * )(preloadBuffer + preLoadPos);
+        if (headPtr->length + sizeof(BlockHeader) > leftLength) {
+          break;
+        } else if (!headPtr->type) {
+          addRecord(headPtr->fp, preloadBuffer + preLoadPos + sizeof(BlockHeader),
+                    headPtr->length);
         }
 
-        if (r == 0) {
-            FileOperator basefile(pathBuffer, FileOpenType::Read);
-            decompressSize = basefile.read(decompressBuffer, PreloadSize);
-            basefile.releaseBufferedData();
-
-            prefetching += decompressSize;
-            readSize = ZSTD_decompress(preloadBuffer, PreloadSize, decompressBuffer, decompressSize);
-            assert(!ZSTD_isError(readSize));
-        } else {
-            ReadBeforeWrite++;
-        }
-
-        assert(basePos.length <= readSize);
-
-        BlockHeader *headPtr;
-
-        uint64_t preLoadPos = 0;
-        uint64_t leftLength = readSize;
-
-        while (leftLength > sizeof(BlockHeader)) {// todo: min chunksize configured to 2048
-            headPtr = (BlockHeader *) (preloadBuffer + preLoadPos);
-            if (headPtr->length + sizeof(BlockHeader) > leftLength) {
-                break;
-            } else if (!headPtr->type) {
-                addRecord(headPtr->fp, preloadBuffer + preLoadPos + sizeof(BlockHeader),
-                          headPtr->length);
-            }
-
-            preLoadPos += headPtr->length + sizeof(BlockHeader);
-            if (preLoadPos >= readSize) break;
-            leftLength = readSize - preLoadPos;
-        }
-        assert(preLoadPos == readSize);
-        gettimeofday(&t1, NULL);
-        loadingTime += (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
+        preLoadPos += headPtr->length + sizeof(BlockHeader);
+        if (preLoadPos >= readSize) break;
+        leftLength = readSize - preLoadPos;
+      }
+      assert(preLoadPos == readSize);
+      gettimeofday(&t1, NULL);
+      loadingTime += (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
     }
 
     void addRecord(const SHA1FP &sha1Fp, uint8_t *buffer, uint64_t length) {
-        {
-            //MutexLockGuard cacheLockGuard(cacheLock);
-            auto iter = cacheMap.find(sha1Fp);
-            if (iter == cacheMap.end()) {
-                uint8_t *cacheBuffer = (uint8_t *) malloc(length);
-                memcpy(cacheBuffer, buffer, length);
-                cacheMap[sha1Fp] = {
-                        cacheBuffer, length, index,
-                };
-                items++;
-                write += length;
-                {
-                    //MutexLockGuard lruLockGuard(lruLock);
-                    lruList[index] = sha1Fp;
-                    index++;
-                    totalSize += length;
-                  while (totalSize > threshold) {
-                    auto iterLru = lruList.begin();
-                    assert(iterLru != lruList.end());
-                    auto iterCache = cacheMap.find(iterLru->second);
-                    assert(iterCache != cacheMap.end());
-                    totalSize -= iterCache->second.length;
-                    free(iterCache->second.block);
-                    cacheMap.erase(iterCache);
-                    lruList.erase(iterLru);
-                    items--;
-                  }
-                }
-            } else {
-                // it should not happen
-                freshLastVisit(iter);
+      {
+        //MutexLockGuard cacheLockGuard(cacheLock);
+        auto iter = cacheMap.find(sha1Fp);
+        if (iter == cacheMap.end()) {
+          uint8_t *cacheBuffer = (uint8_t *) malloc(length);
+          memcpy(cacheBuffer, buffer, length);
+          cacheMap[sha1Fp] = {
+                  cacheBuffer, length, index,
+          };
+          items++;
+          write += length;
+          {
+            //MutexLockGuard lruLockGuard(lruLock);
+            lruList[index] = sha1Fp;
+            index++;
+            totalSize += length;
+            while (totalSize > threshold) {
+              auto iterLru = lruList.begin();
+              assert(iterLru != lruList.end());
+              auto iterCache = cacheMap.find(iterLru->second);
+              assert(iterCache != cacheMap.end());
+              totalSize -= iterCache->second.length;
+              free(iterCache->second.block);
+              cacheMap.erase(iterCache);
+              lruList.erase(iterLru);
+              items--;
             }
+          }
+        } else {
+          // it should not happen
+          freshLastVisit(iter);
         }
+      }
     }
 
     int getRecordBatch(BasePos *chunks, int count, BlockEntry *cacheBlock, BasePos *selectedBase) {
-        {
-            //MutexLockGuard cacheLockGuard(cacheLock);
-            access++;
-            int vadID = -1;
-            for (int i = 0; i < 6; i++) {
-                if (chunks[i].valid) {
-                    *selectedBase = chunks[i];
-                    vadID = i;
-                    auto iterCache = cacheMap.find(chunks[i].sha1Fp);
-                    if (iterCache == cacheMap.end()) {
-                        //
-                    } else {
-                        success++;
-                        *cacheBlock = iterCache->second;
-                        read += cacheBlock->length;
-                        {
-                            freshLastVisit(iterCache);
-                        }
-                        return 1;
-                    }
-                }
-            }
-            loadBaseChunks(chunks[vadID]);
-            auto iterCache = cacheMap.find(chunks[vadID].sha1Fp);
+      {
+        //MutexLockGuard cacheLockGuard(cacheLock);
+        access++;
+        int vadID = -1;
+        for (int i = 0; i < 6; i++) {
+          if (chunks[i].valid) {
+            *selectedBase = chunks[i];
+            vadID = i;
+            auto iterCache = cacheMap.find(chunks[i].sha1Fp);
             if (iterCache == cacheMap.end()) {
-                printf("id:%d, co:%u\n", vadID, chunks[vadID].CategoryOrder);
-            }
-            assert(iterCache != cacheMap.end());
-            *cacheBlock = iterCache->second;
-            {
+              //
+            } else {
+              success++;
+              *cacheBlock = iterCache->second;
+              read += cacheBlock->length;
+              {
                 freshLastVisit(iterCache);
+              }
+              return 1;
             }
-            return 1;
+          }
         }
+        loadBaseChunks(chunks[vadID]);
+        auto iterCache = cacheMap.find(chunks[vadID].sha1Fp);
+        if (iterCache == cacheMap.end()) {
+          printf("id:%d, co:%u\n", vadID, chunks[vadID].CategoryOrder);
+        }
+        assert(iterCache != cacheMap.end());
+        *cacheBlock = iterCache->second;
+        {
+          freshLastVisit(iterCache);
+        }
+        return 1;
+      }
     }
 
     int getRecord(const BasePos *basePos, BlockEntry *cacheBlock) {
-        {
-            //MutexLockGuard cacheLockGuard(cacheLock);
-            auto iterCache = cacheMap.find(basePos->sha1Fp);
-            if (iterCache != cacheMap.end()) {
-                *cacheBlock = iterCache->second;
-                read += cacheBlock->length;
-                {
-                    freshLastVisit(iterCache);
-                }
-                return 1;
-            }
-            return 0;
+      {
+        //MutexLockGuard cacheLockGuard(cacheLock);
+        auto iterCache = cacheMap.find(basePos->sha1Fp);
+        if (iterCache != cacheMap.end()) {
+          *cacheBlock = iterCache->second;
+          read += cacheBlock->length;
+          {
+            freshLastVisit(iterCache);
+          }
+          return 1;
         }
+        return 0;
+      }
     }
 
     int getRecordWithoutFresh(const BasePos *basePos, BlockEntry *cacheBlock) {
-        {
-            //MutexLockGuard cacheLockGuard(cacheLock);
-            access++;
-            auto iterCache = cacheMap.find(basePos->sha1Fp);
-            if (iterCache != cacheMap.end()) {
-                success++;
-                *cacheBlock = iterCache->second;
-                read += cacheBlock->length;
-                return 1;
-            }
-            return 0;
+      {
+        //MutexLockGuard cacheLockGuard(cacheLock);
+        access++;
+        auto iterCache = cacheMap.find(basePos->sha1Fp);
+        if (iterCache != cacheMap.end()) {
+          success++;
+          *cacheBlock = iterCache->second;
+          read += cacheBlock->length;
+          return 1;
         }
+        return 0;
+      }
     }
 
     int getRecordNoFS(const BasePos *basePos, BlockEntry *cacheBlock) {
-        {
-            //MutexLockGuard cacheLockGuard(cacheLock);
-            auto iterCache = cacheMap.find(basePos->sha1Fp);
-            if (iterCache != cacheMap.end()) {
-                *cacheBlock = iterCache->second;
-                read += cacheBlock->length;
-                return 1;
-            }
-            return 0;
+      {
+        //MutexLockGuard cacheLockGuard(cacheLock);
+        auto iterCache = cacheMap.find(basePos->sha1Fp);
+        if (iterCache != cacheMap.end()) {
+          *cacheBlock = iterCache->second;
+          read += cacheBlock->length;
+          return 1;
         }
+        return 0;
+      }
     }
 
 private:
     void freshLastVisit(
             std::unordered_map<SHA1FP, BlockEntry, TupleHasher, TupleEqualer>::iterator iter) {
-        //MutexLockGuard lruLockGuard(lruLock);
-        iter->second.score++;
-        if (iter->second.score > UpdateScore) {
-            iter->second.score = 0;
-            auto iterl = lruList.find(iter->second.lastVisit);
-            lruList[index] = iterl->second;
-            lruList.erase(iterl);
-            iter->second.lastVisit = index;
-            index++;
-        }
+      //MutexLockGuard lruLockGuard(lruLock);
+      iter->second.score++;
+      if (iter->second.score > UpdateScore) {
+        iter->second.score = 0;
+        auto iterl = lruList.find(iter->second.lastVisit);
+        lruList[index] = iterl->second;
+        lruList.erase(iterl);
+        iter->second.lastVisit = index;
+        index++;
+      }
 
     }
 

@@ -93,222 +93,222 @@ const char bytemsb[0x100] = {0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5,
 
 /***********************************************the rabin**********************************************/
 static uint32_t fls32(UINT32 v) {
-    if (v & 0xffff0000) {
-        if (v & 0xff000000)
-            return 24 + bytemsb[v >> 24];
-        else
-            return 16 + bytemsb[v >> 16];
-    }
-    if (v & 0x0000ff00)
-        return 8 + bytemsb[v >> 8];
+  if (v & 0xffff0000) {
+    if (v & 0xff000000)
+      return 24 + bytemsb[v >> 24];
     else
-        return bytemsb[v];
+      return 16 + bytemsb[v >> 16];
+  }
+  if (v & 0x0000ff00)
+    return 8 + bytemsb[v >> 8];
+  else
+    return bytemsb[v];
 }
 
 static uint32_t fls64(UINT64 v) {
-    UINT32 h;
-    if ((h = v >> 32))
-        return 32 + fls32(h);
-    else
-        return fls32((UINT32) v);
+  UINT32 h;
+  if ((h = v >> 32))
+    return 32 + fls32(h);
+  else
+    return fls32((UINT32) v);
 }
 
 UINT64 polymod(UINT64 nh, UINT64 nl, UINT64 d) {
 
-    int k = fls64(d) - 1;
-    int i;
+  int k = fls64(d) - 1;
+  int i;
 
-    //printf ("polymod : k = %d\n", k);
+  //printf ("polymod : k = %d\n", k);
 
-    d <<= 63 - k;
+  d <<= 63 - k;
 
-    //printf ("polymod : d = %llu\n", d);
-    //printf ("polymod : MSB64 = %llu\n", MSB64);
+  //printf ("polymod : d = %llu\n", d);
+  //printf ("polymod : MSB64 = %llu\n", MSB64);
 
-    if (nh) {
-        if (nh & MSB64)
-            nh ^= d;
+  if (nh) {
+    if (nh & MSB64)
+      nh ^= d;
 
+    //printf ("polymod : nh = %llu\n", nh);
+
+    for (i = 62; i >= 0; i--)
+      if (nh & ((UINT64) 1) << i) {
+        nh ^= d >> (63 - i);
+        nl ^= d << (i + 1);
+
+        //printf ("polymod : i = %d\n", i);
+        //printf ("polymod : shift1 = %llu\n", (d >> (63 - i)));
+        //printf ("polymod : shift2 = %llu\n", (d << (i + 1)));
         //printf ("polymod : nh = %llu\n", nh);
-
-        for (i = 62; i >= 0; i--)
-            if (nh & ((UINT64) 1) << i) {
-                nh ^= d >> (63 - i);
-                nl ^= d << (i + 1);
-
-                //printf ("polymod : i = %d\n", i);
-                //printf ("polymod : shift1 = %llu\n", (d >> (63 - i)));
-                //printf ("polymod : shift2 = %llu\n", (d << (i + 1)));
-                //printf ("polymod : nh = %llu\n", nh);
-                //printf ("polymod : nl = %llu\n", nl);
-
-            }
-    }
-    for (i = 63; i >= k; i--) {
-        if (nl & (long long int) (1) << i)
-            nl ^= d >> 63 - i;
-
         //printf ("polymod : nl = %llu\n", nl);
 
-    }
+      }
+  }
+  for (i = 63; i >= k; i--) {
+    if (nl & (long long int) (1) << i)
+      nl ^= d >> 63 - i;
 
-    //printf ("polymod : returning %llu\n", nl);
+    //printf ("polymod : nl = %llu\n", nl);
 
-    return nl;
+  }
+
+  //printf ("polymod : returning %llu\n", nl);
+
+  return nl;
 }
 
 void polymult(UINT64 *php, UINT64 *plp, UINT64 x, UINT64 y) {
 
-    int i;
+  int i;
 
-    //printf ("polymult (x %llu y %llu)\n", x, y);
+  //printf ("polymult (x %llu y %llu)\n", x, y);
 
-    UINT64 ph = 0, pl = 0;
-    if (x & 1)
-        pl = y;
-    for (i = 1; i < 64; i++)
-        if (x & ((long long int) (1) << i)) {
+  UINT64 ph = 0, pl = 0;
+  if (x & 1)
+    pl = y;
+  for (i = 1; i < 64; i++)
+    if (x & ((long long int) (1) << i)) {
 
-            //printf ("polymult : i = %d\n", i);
-            //printf ("polymult : ph = %llu\n", ph);
-            //printf ("polymult : pl = %llu\n", pl);
-            //printf ("polymult : y = %llu\n", y);
-            //printf ("polymult : ph ^ y >> (64-i) = %llu\n", (ph ^ y >> (64-i)));
-            //printf ("polymult : pl ^ y << i = %llu\n", (pl ^ y << i));
+      //printf ("polymult : i = %d\n", i);
+      //printf ("polymult : ph = %llu\n", ph);
+      //printf ("polymult : pl = %llu\n", pl);
+      //printf ("polymult : y = %llu\n", y);
+      //printf ("polymult : ph ^ y >> (64-i) = %llu\n", (ph ^ y >> (64-i)));
+      //printf ("polymult : pl ^ y << i = %llu\n", (pl ^ y << i));
 
-            ph ^= y >> (64 - i);
-            pl ^= y << i;
+      ph ^= y >> (64 - i);
+      pl ^= y << i;
 
-            //printf ("polymult : ph %llu pl %llu\n", ph, pl);
+      //printf ("polymult : ph %llu pl %llu\n", ph, pl);
 
-        }
-    if (php)
-        *php = ph;
-    if (plp)
-        *plp = pl;
+    }
+  if (php)
+    *php = ph;
+  if (plp)
+    *plp = pl;
 
-    //printf ("polymult : h %llu l %llu\n", ph, pl);
+  //printf ("polymult : h %llu l %llu\n", ph, pl);
 
 }
 
 UINT64 append8(UINT64 p, unsigned char m) {
-    return ((p << 8) | m) ^ T[p >> shift];
+  return ((p << 8) | m) ^ T[p >> shift];
 }
 
 UINT64 slide8(unsigned char m) {
-    unsigned char om;
-    //printf("this char is %c\n",m);
-    if (++bufpos >= size)
-        bufpos = 0;
-    om = buf[bufpos];
-    buf[bufpos] = m;
-    return fp = append8(fp ^ U[om], m);
+  unsigned char om;
+  //printf("this char is %c\n",m);
+  if (++bufpos >= size)
+    bufpos = 0;
+  om = buf[bufpos];
+  buf[bufpos] = m;
+  return fp = append8(fp ^ U[om], m);
 }
 
 UINT64 polymmult(UINT64 x, UINT64 y, UINT64 d) {
 
-    //printf ("polymmult (x %llu y %llu d %llu)\n", x, y, d);
+  //printf ("polymmult (x %llu y %llu d %llu)\n", x, y, d);
 
-    UINT64 h, l;
-    polymult(&h, &l, x, y);
-    return polymod(h, l, d);
+  UINT64 h, l;
+  polymult(&h, &l, x, y);
+  return polymod(h, l, d);
 }
 
 void calcT(UINT64 poly) {
 
-    int j;
-    UINT64 T1;
+  int j;
+  UINT64 T1;
 
-    //printf ("rabinpoly::calcT ()\n");
+  //printf ("rabinpoly::calcT ()\n");
 
-    int xshift = fls64(poly) - 1;
-    shift = xshift - 8;
-    T1 = polymod(0, (long long int) (1) << xshift, poly);
-    for (j = 0; j < 256; j++) {
-        T[j] = polymmult(j, T1, poly) | ((UINT64) j << xshift);
+  int xshift = fls64(poly) - 1;
+  shift = xshift - 8;
+  T1 = polymod(0, (long long int) (1) << xshift, poly);
+  for (j = 0; j < 256; j++) {
+    T[j] = polymmult(j, T1, poly) | ((UINT64) j << xshift);
 
-        //printf ("rabinpoly::calcT tmp = %llu\n", polymmult (j, T1, poly));
-        //printf ("rabinpoly::calcT shift = %llu\n", ((UINT64) j << xshift));
-        //printf ("rabinpoly::calcT xshift = %d\n", xshift);
-        //printf ("rabinpoly::calcT T[%d] = %llu\n", j, T[j]);
-
-    }
-
+    //printf ("rabinpoly::calcT tmp = %llu\n", polymmult (j, T1, poly));
+    //printf ("rabinpoly::calcT shift = %llu\n", ((UINT64) j << xshift));
     //printf ("rabinpoly::calcT xshift = %d\n", xshift);
-    //printf ("rabinpoly::calcT T1 = %llu\n", T1);
-    //printf ("rabinpoly::calcT T = {");
-    //for (i=0; i< 256; i++)
-    //printf ("\t%llu \n", T[i]);
-    //printf ("}\n");
+    //printf ("rabinpoly::calcT T[%d] = %llu\n", j, T[j]);
+
+  }
+
+  //printf ("rabinpoly::calcT xshift = %d\n", xshift);
+  //printf ("rabinpoly::calcT T1 = %llu\n", T1);
+  //printf ("rabinpoly::calcT T = {");
+  //for (i=0; i< 256; i++)
+  //printf ("\t%llu \n", T[i]);
+  //printf ("}\n");
 
 }
 
 void rabinpoly_init(UINT64 p) {
-    poly = p;
-    calcT(poly);
+  poly = p;
+  calcT(poly);
 }
 
 void window_init(UINT64 poly) {
 
-    int i;
-    UINT64 sizeshift;
+  int i;
+  UINT64 sizeshift;
 
-    rabinpoly_init(poly);
-    fp = 0;
-    bufpos = -1;
-    sizeshift = 1;
-    for (i = 1; i < size; i++)
-        sizeshift = append8(sizeshift, 0);
-    for (i = 0; i < 256; i++)
-        U[i] = polymmult(i, sizeshift, poly);
-    memset((char *) buf, 0, sizeof(buf));
+  rabinpoly_init(poly);
+  fp = 0;
+  bufpos = -1;
+  sizeshift = 1;
+  for (i = 1; i < size; i++)
+    sizeshift = append8(sizeshift, 0);
+  for (i = 0; i < 256; i++)
+    U[i] = polymmult(i, sizeshift, poly);
+  memset((char *) buf, 0, sizeof(buf));
 }
 
 void windows_reset() {
-    fp = 0;
-    //memset((char*) buf,0,sizeof (buf));
-    //memset((char*) chunk,0,sizeof (chunk));
+  fp = 0;
+  //memset((char*) buf,0,sizeof (buf));
+  //memset((char*) chunk,0,sizeof (chunk));
 }
 
 static int rabin_mask = 0;
 
 void chunkAlg_init() {
-    window_init(FINGERPRINT_PT);
-    _last_pos = 0;
-    _cur_pos = 0;
-    windows_reset();
-    _num_chunks = 0;
-    rabin_mask = 8192 - 1;
+  window_init(FINGERPRINT_PT);
+  _last_pos = 0;
+  _cur_pos = 0;
+  windows_reset();
+  _num_chunks = 0;
+  rabin_mask = 8192 - 1;
 }
 
 /* The standard rabin chunking */
 int rabin_chunk_data(unsigned char *p, int n) {
 
-    UINT64 f_break = 0;
-    UINT64 count = 0;
-    UINT64 fp = 0;
-    int i = 1, bufPos = -1;
+  UINT64 f_break = 0;
+  UINT64 count = 0;
+  UINT64 fp = 0;
+  int i = 1, bufPos = -1;
 
-    unsigned char om;
-    uint64_t x;
+  unsigned char om;
+  uint64_t x;
 
-    unsigned char buf[128];
-    memset((char *) buf, 0, 128);
+  unsigned char buf[128];
+  memset((char *) buf, 0, 128);
 
-    if (n <= 1024)
-        return n;
-    else
-        i = 1024;
+  if (n <= 1024)
+    return n;
+  else
+    i = 1024;
 
-    int end = n > 65536 ? 65536 : n;
-    while (i < end) {
+  int end = n > 65536 ? 65536 : n;
+  while (i < end) {
 
-        SLIDE(p[i - 1], fp, bufPos, buf);
-        if ((fp & rabin_mask) == BREAKMARK_VALUE)
-            break;
-        i++;
-    }
-    return i;
+    SLIDE(p[i - 1], fp, bufPos, buf);
+    if ((fp & rabin_mask) == BREAKMARK_VALUE)
+      break;
+    i++;
+  }
+  return i;
 }
 
 int rabin_pos = 0;
@@ -316,22 +316,22 @@ unsigned char rabin_buf[128];
 uint64_t rabin_fp = 0;
 
 void rabin_local_init() {
-    memset(rabin_buf, 0, 128);
-    rabin_pos = 0;
-    rabin_fp = 0;
+  memset(rabin_buf, 0, 128);
+  rabin_pos = 0;
+  rabin_fp = 0;
 }
 
 uint64_t rabin_rolling(unsigned char c) {
-    SLIDE(c, rabin_fp, rabin_pos, rabin_buf);
-    return rabin_fp;
+  SLIDE(c, rabin_fp, rabin_pos, rabin_buf);
+  return rabin_fp;
 }
 
 int rabin_masks() {
-    return rabin_mask;
+  return rabin_mask;
 }
 
 uint64_t rabin_break_value() {
-    return BREAKMARK_VALUE;
+  return BREAKMARK_VALUE;
 }
 
 /*
@@ -341,41 +341,41 @@ uint64_t rabin_break_value() {
  * */
 int normalized_rabin_chunk_data(unsigned char *p, int n) {
 
-    UINT64 f_break = 0;
-    UINT64 count = 0;
-    UINT64 fp = 0;
-    int i = 1, bufPos = -1;
+  UINT64 f_break = 0;
+  UINT64 count = 0;
+  UINT64 fp = 0;
+  int i = 1, bufPos = -1;
 
-    unsigned char om;
-    uint64_t x;
+  unsigned char om;
+  uint64_t x;
 
-    unsigned char buf[128];
-    memset((char *) buf, 0, 128);
+  unsigned char buf[128];
+  memset((char *) buf, 0, 128);
 
-    if (n <= 1024)
-        return n;
-    else
-        i = 1024;
+  if (n <= 1024)
+    return n;
+  else
+    i = 1024;
 
-    int small_mask = 8192 * 2 - 1;
-    int large_mask = 8192 / 2 - 1;
-    int end = n > 65536 ? 65536 : n;
-    while (i < end) {
+  int small_mask = 8192 * 2 - 1;
+  int large_mask = 8192 / 2 - 1;
+  int end = n > 65536 ? 65536 : n;
+  while (i < end) {
 
-        SLIDE(p[i - 1], fp, bufPos, buf);
+    SLIDE(p[i - 1], fp, bufPos, buf);
 
-        if (i < 8192) {
-            if ((fp & small_mask) == BREAKMARK_VALUE)
-                break;
-            i++;
-        } else {
-            if ((fp & large_mask) == BREAKMARK_VALUE)
-                break;
-            i++;
-        }
-
+    if (i < 8192) {
+      if ((fp & small_mask) == BREAKMARK_VALUE)
+        break;
+      i++;
+    } else {
+      if ((fp & large_mask) == BREAKMARK_VALUE)
+        break;
+      i++;
     }
-    return i;
+
+  }
+  return i;
 }
 
 /*
@@ -385,39 +385,39 @@ int normalized_rabin_chunk_data(unsigned char *p, int n) {
  */
 int tttd_chunk_data(unsigned char *p, int n) {
 
-    UINT64 f_break = 0;
-    UINT64 count = 0;
-    UINT64 fingerprint = 0;
-    int i = 1, bufPos = -1, m = 0;
+  UINT64 f_break = 0;
+  UINT64 count = 0;
+  UINT64 fingerprint = 0;
+  int i = 1, bufPos = -1, m = 0;
 
-    unsigned char om;
-    uint64_t x;
+  unsigned char om;
+  uint64_t x;
 
-    unsigned char buf[128];
-    memset((char *) buf, 0, 128);
+  unsigned char buf[128];
+  memset((char *) buf, 0, 128);
 
-    if (n <= 1024)
-        return n;
-    else
-        i = 1024;
+  if (n <= 1024)
+    return n;
+  else
+    i = 1024;
 
-    int back_mask = 8192 / 2 - 1;
-    int end = n > 65536 ? 8192 : n;
-    while (i < end) {
+  int back_mask = 8192 / 2 - 1;
+  int end = n > 65536 ? 8192 : n;
+  while (i < end) {
 
-        SLIDE(p[i - 1], fingerprint, bufPos, buf);
-        if ((fingerprint & back_mask) == BREAKMARK_VALUE) {
-            if ((fingerprint & rabin_mask) == BREAKMARK_VALUE)
-                return i;
-            m = i;
-        }
-
-        i++;
-    }
-    if (m != 0)
-        return m;
-    else
+    SLIDE(p[i - 1], fingerprint, bufPos, buf);
+    if ((fingerprint & back_mask) == BREAKMARK_VALUE) {
+      if ((fingerprint & rabin_mask) == BREAKMARK_VALUE)
         return i;
+      m = i;
+    }
+
+    i++;
+  }
+  if (m != 0)
+    return m;
+  else
+    return i;
 }
 
 

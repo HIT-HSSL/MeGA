@@ -19,33 +19,33 @@ enum class HashType {
 class RollHash {
 public:
     virtual inline uint64_t rolling(uint8_t *inputPtr) {
-        printf("RollHash error encountered\n");
-        return 0;
+      printf("RollHash error encountered\n");
+      return 0;
     }
 
     virtual uint64_t reset() {
-        printf("RollHash error encountered\n");
-        return 0;
+      printf("RollHash error encountered\n");
+      return 0;
     }
 
     virtual uint64_t getDeltaMask() {
-        printf("RollHash error encountered\n");
-        return 0;
+      printf("RollHash error encountered\n");
+      return 0;
     }
 
     virtual uint64_t getChunkMask() {
-        printf("RollHash error encountered\n");
-        return 0;
+      printf("RollHash error encountered\n");
+      return 0;
     }
 
     virtual bool tryBreak(uint64_t fp) {
-        printf("RollHash error encountered\n");
-        return 0;
+      printf("RollHash error encountered\n");
+      return 0;
     }
 
     virtual uint64_t *getMatrix() {
-        printf("RollHash error encountered\n");
-        return 0;
+      printf("RollHash error encountered\n");
+      return 0;
     }
 };
 

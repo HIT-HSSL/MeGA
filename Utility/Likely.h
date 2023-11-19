@@ -10,11 +10,11 @@
 #define MEGA_LIKELY_H
 
 bool likely(bool input) {
-    return __builtin_expect(input, 1);
+  return __builtin_expect(input, 1);
 }
 
 bool unlikely(bool input) {
-    return __builtin_expect(input, 0);
+  return __builtin_expect(input, 0);
 }
 
 #endif //MEGA_LIKELY_H

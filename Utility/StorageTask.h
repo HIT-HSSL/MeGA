@@ -12,7 +12,7 @@ struct SHA1FP {
     uint32_t fp2, fp3, fp4;
 
     void print() {
-        printf("%lu:%d:%d:%d\n", fp1, fp2, fp3, fp4);
+      printf("%lu:%d:%d:%d\n", fp1, fp2, fp3, fp4);
     }
 };
 
@@ -41,7 +41,7 @@ struct BasePos {
     uint64_t valid: 1;
 };
 
-struct DeltaTask{
+struct DeltaTask {
     uint8_t *buffer;
     uint64_t pos;
     uint64_t length;
@@ -78,7 +78,7 @@ struct DedupTask {
     BlockEntry availBase;
 };
 
-enum class WriteTaskType{
+enum class WriteTaskType {
     Unique,
     Delta,
 };
@@ -116,7 +116,7 @@ struct StorageTask {
     CountdownLatch *countdownLatch = nullptr;
 
     void destruction() {
-        if (buffer) free(buffer);
+      if (buffer) free(buffer);
     }
 };
 
@@ -135,20 +135,20 @@ struct RestoreParseTask {
     uint64_t sizeAfterCompression = 0;
 
     RestoreParseTask(uint8_t *buf, uint64_t len, uint64_t sac) {
-        buffer = buf;
-        length = len;
-        beginPos = 0;
-        sizeAfterCompression = sac;
+      buffer = buf;
+      length = len;
+      beginPos = 0;
+      sizeAfterCompression = sac;
     }
 
     RestoreParseTask(bool flag) {
-        endFlag = true;
+      endFlag = true;
     }
 
     ~RestoreParseTask() {
-        if (buffer) {
-            free(buffer);
-        }
+      if (buffer) {
+        free(buffer);
+      }
     }
 };
 
@@ -162,31 +162,31 @@ struct RestoreWriteTask {
     bool endFlag = false;
 
     RestoreWriteTask(uint8_t *buf, uint64_t p, uint64_t len, uint64_t t, uint64_t isbase, uint64_t dl) {
-        buffer = (uint8_t *) malloc(len);
-        memcpy(buffer, buf, len);
-        length = len;
-        base = isbase;
-        type = t;
-        pos = p;
+      buffer = (uint8_t *) malloc(len);
+      memcpy(buffer, buf, len);
+      length = len;
+      base = isbase;
+      type = t;
+      pos = p;
 
-        if (isbase) {
-            deltaLength = dl;
-        }
+      if (isbase) {
+        deltaLength = dl;
+      }
     }
 
     RestoreWriteTask(bool flag) {
-        endFlag = true;
+      endFlag = true;
     }
 
     ~RestoreWriteTask() {
-        if (buffer) {
-            free(buffer);
-        }
+      if (buffer) {
+        free(buffer);
+      }
     }
 };
 
-struct ArrangementWriteTask{
-    uint8_t* writeBuffer = nullptr;
+struct ArrangementWriteTask {
+    uint8_t *writeBuffer = nullptr;
     uint64_t length;
     uint64_t beforeClassId;
     uint64_t arrangementVersion = -1;
@@ -194,34 +194,34 @@ struct ArrangementWriteTask{
     bool classEndFlag = false;
     bool finalEndFlag = false;
     bool startFlag = false;
-    CountdownLatch* countdownLatch;
+    CountdownLatch *countdownLatch;
 
     ArrangementWriteTask(uint8_t *buf, uint64_t len, uint64_t pcid, uint64_t version, bool isArch) {
-        writeBuffer = (uint8_t *) malloc(len);
-        memcpy(writeBuffer, buf, len);
-        length = len;
-        beforeClassId = pcid;
-        arrangementVersion = version;
-        isArchived = isArch;
+      writeBuffer = (uint8_t *) malloc(len);
+      memcpy(writeBuffer, buf, len);
+      length = len;
+      beforeClassId = pcid;
+      arrangementVersion = version;
+      isArchived = isArch;
     }
 
     ArrangementWriteTask(bool flag, uint64_t pcid) {
-        classEndFlag = true;
-        beforeClassId = pcid;
+      classEndFlag = true;
+      beforeClassId = pcid;
     }
 
-    ArrangementWriteTask(bool flag){
-        finalEndFlag = true;
+    ArrangementWriteTask(bool flag) {
+      finalEndFlag = true;
     }
 
-    ArrangementWriteTask(){
+    ArrangementWriteTask() {
 
     }
 
     ~ArrangementWriteTask() {
-        if (writeBuffer) {
-            free(writeBuffer);
-        }
+      if (writeBuffer) {
+        free(writeBuffer);
+      }
     }
 };
 
@@ -237,38 +237,38 @@ struct ArrangementWriteTask{
 //    CountdownLatch* countdownLatch;
 //};
 
-struct ArrangementFilterTask{
-    uint8_t* readBuffer = nullptr;
+struct ArrangementFilterTask {
+    uint8_t *readBuffer = nullptr;
     uint64_t length;
     uint64_t classId;
     uint64_t arrangementVersion;
     bool classEndFlag = false;
     bool finalEndFlag = false;
     bool startFlag = false;
-    CountdownLatch* countdownLatch;
+    CountdownLatch *countdownLatch;
 
     ArrangementFilterTask(uint8_t *buf, uint64_t len, uint64_t cid, uint64_t version) {
-        readBuffer = buf;
-        length = len;
-        classId = cid;
-        arrangementVersion = version;
+      readBuffer = buf;
+      length = len;
+      classId = cid;
+      arrangementVersion = version;
     }
 
     ArrangementFilterTask(bool flag, uint64_t cid) {
-        classEndFlag = true;
-        classId = cid;
+      classEndFlag = true;
+      classId = cid;
     }
 
-    ArrangementFilterTask(bool flag){
-        finalEndFlag = true;
+    ArrangementFilterTask(bool flag) {
+      finalEndFlag = true;
     }
 
-    ArrangementFilterTask(){
+    ArrangementFilterTask() {
 
     }
 
-    ~ArrangementFilterTask(){
-        if(readBuffer) free(readBuffer);
+    ~ArrangementFilterTask() {
+      if (readBuffer) free(readBuffer);
     }
 };
 
@@ -279,8 +279,8 @@ struct ArrangementTask {
 
 struct BlockHeader {
     SHA1FP fp;
-    uint64_t type : 1;
-    uint64_t length : 63;
+    uint64_t type: 1;
+    uint64_t length: 63;
     uint64_t oriLength;
     union {
         SHA1FP baseFP;
