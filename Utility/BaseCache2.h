@@ -230,6 +230,21 @@ public:
       return 0;
     }
 
+    int tryFindRecord(const SimilarityFeatures &features, SHA1FP *targetChunk) {
+        int r = currentContainer.findRecord(features, targetChunk);
+        if (r == 1) {
+            return r;
+        }
+
+        for (const auto &table: cacheMap) {
+            r = table.second.findRecord(features, targetChunk);
+            if (r == 1) {
+                return r;
+            }
+        }
+        return 0;
+    }
+
     int getRecord(const BasePos *basePos, BlockEntry2 *block) {
       int r = currentContainer.tryGetRecord(basePos->sha1Fp, block);
       if (r == 1) {

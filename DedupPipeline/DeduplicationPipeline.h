@@ -136,18 +136,21 @@ private:
           LookupResult similarLookupResult = LookupResult::Dissimilar;
           odessCalculation(entry.buffer + entry.pos, entry.length, &entry.similarityFeatures);
           if (DeltaSwitch) {
-            similarLookupResult = GlobalMetadataManagerPtr->similarityLookupSimple(entry.similarityFeatures,
-                                                                                   &tempBasePos);
-          }
-          if (similarLookupResult == LookupResult::Similar) {
             SHA1FP targetChunk;
-            int r = baseCache.findRecord(entry.similarityFeatures, &targetChunk);
-            entry.lookupResult = similarLookupResult;
-            entry.basePos = tempBasePos;
-            entry.inCache = r;
-          } else {
-            // unique
-            // do nothing
+            int r = baseCache.tryFindRecord(entry.similarityFeatures, &targetChunk);
+            if(r) {
+                entry.lookupResult = similarLookupResult;
+                entry.basePos.sha1Fp = targetChunk;
+                entry.inCache = r;
+            }else{
+              similarLookupResult = GlobalMetadataManagerPtr->similarityLookupSimple(entry.similarityFeatures,
+                                                                                       &tempBasePos);
+              if (similarLookupResult == LookupResult::Similar) {
+                  entry.lookupResult = similarLookupResult;
+                  entry.basePos = tempBasePos;
+                  entry.inCache = false;
+              }
+            }
           }
         } else if (lookupResult == LookupResult::InternalDedup) {
           // do nothing
@@ -230,7 +233,6 @@ private:
               similarLookupResult = GlobalMetadataManagerPtr->similarityLookupSimple(entry.similarityFeatures,
                                                                                      &entry.basePos);
             }
-
           }
           if (similarLookupResult == LookupResult::Similar && !entry.deltaReject) {
             int r;
