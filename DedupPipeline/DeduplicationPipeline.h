@@ -137,7 +137,7 @@ private:
           odessCalculation(entry.buffer + entry.pos, entry.length, &entry.similarityFeatures);
           if (DeltaSwitch) {
             SHA1FP targetChunk;
-            int r = baseCache.tryFindRecord(entry.similarityFeatures, &targetChunk);
+            int r = baseCache.findRecord(entry.similarityFeatures, &targetChunk);
             if(r) {
                 entry.lookupResult = similarLookupResult;
                 entry.basePos.sha1Fp = targetChunk;
@@ -237,7 +237,7 @@ private:
           if (similarLookupResult == LookupResult::Similar && !entry.deltaReject) {
             int r;
             if (r == 0) {
-              r = baseCache.getRecord(&entry.basePos, &tempBlockEntry);
+              r = baseCache.tryGetRecord(&entry.basePos, &tempBlockEntry);
               if (!r) {
                 baseCache.loadBaseChunks(entry.basePos);
                 r = baseCache.getRecord(&entry.basePos, &tempBlockEntry);
