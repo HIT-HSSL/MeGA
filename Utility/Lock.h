@@ -69,28 +69,28 @@ public:
     }
 
     void wait() {
-      MutexLockGuard mutexLockGuard(mutexLock);
-      while (count > 0) {
-        condition.wait();
-      }
+        MutexLockGuard mutexLockGuard(mutexLock);
+        while (count > 0) {
+            condition.wait();
+        }
     }
 
     void addCount() {
-      MutexLockGuard mutexLockGuard(mutexLock);
-      ++count;
+        MutexLockGuard mutexLockGuard(mutexLock);
+        ++count;
     }
 
     void setCount(int n) {
-      MutexLockGuard mutexLockGuard(mutexLock);
-      count = n;
+        MutexLockGuard mutexLockGuard(mutexLock);
+        count = n;
     }
 
     void countDown() {
-      MutexLockGuard mutexLockGuard(mutexLock);
-      --count;
-      if (count == 0) {
-        condition.notifyAll();
-      }
+        MutexLockGuard mutexLockGuard(mutexLock);
+        --count;
+        if (count == 0) {
+            condition.notifyAll();
+        }
     }
 
 private:

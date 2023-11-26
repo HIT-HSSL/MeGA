@@ -21,159 +21,159 @@ uint64_t ArrangementReadBufferLength = ContainerSize * 1.2;
 class ArrangementReadPipeline {
 public:
     ArrangementReadPipeline() : taskAmount(0), runningFlag(true), mutexLock(), condition(mutexLock) {
-      worker = new std::thread(std::bind(&ArrangementReadPipeline::arrangementReadCallback, this));
+        worker = new std::thread(std::bind(&ArrangementReadPipeline::arrangementReadCallback, this));
     }
 
     int addTask(ArrangementTask *arrangementTask) {
-      MutexLockGuard mutexLockGuard(mutexLock);
-      taskList.push_back(arrangementTask);
-      taskAmount++;
-      condition.notify();
+        MutexLockGuard mutexLockGuard(mutexLock);
+        taskList.push_back(arrangementTask);
+        taskAmount++;
+        condition.notify();
     }
 
     ~ArrangementReadPipeline() {
-      runningFlag = false;
-      condition.notifyAll();
-      worker->join();
+        runningFlag = false;
+        condition.notifyAll();
+        worker->join();
     }
 
 
 private:
 
     void arrangementReadCallback() {
-      pthread_setname_np(pthread_self(), "AReading Thread");
-      ArrangementTask *arrangementTask;
-      readAmount = 0;
+        pthread_setname_np(pthread_self(), "AReading Thread");
+        ArrangementTask *arrangementTask;
+        readAmount = 0;
 
-      while (likely(runningFlag)) {
-        {
-          MutexLockGuard mutexLockGuard(mutexLock);
-          while (!taskAmount) {
-            condition.wait();
-            if (unlikely(!runningFlag)) break;
-          }
-          if (unlikely(!runningFlag)) continue;
-          taskAmount--;
-          arrangementTask = taskList.front();
-          taskList.pop_front();
+        while (likely(runningFlag)) {
+            {
+                MutexLockGuard mutexLockGuard(mutexLock);
+                while (!taskAmount) {
+                    condition.wait();
+                    if (unlikely(!runningFlag)) break;
+                }
+                if (unlikely(!runningFlag)) continue;
+                taskAmount--;
+                arrangementTask = taskList.front();
+                taskList.pop_front();
+            }
+
+            uint64_t arrangementVersion = arrangementTask->arrangementVersion;
+
+            if (likely(arrangementVersion > 0)) {
+                ArrangementFilterTask *startTask = new ArrangementFilterTask();
+                startTask->startFlag = true;
+                startTask->arrangementVersion = arrangementVersion;
+                GlobalArrangementFilterPipelinePtr->addTask(startTask);
+
+                readClassWithAppend(1, arrangementVersion);
+                for (uint64_t i = 2; i <= arrangementVersion; i++) {
+                    readClass(i, arrangementVersion);
+                }
+
+                ArrangementFilterTask *arrangementFilterTask = new ArrangementFilterTask(true);
+                arrangementFilterTask->countdownLatch = arrangementTask->countdownLatch;
+                GlobalArrangementFilterPipelinePtr->addTask(arrangementFilterTask);
+                printf("ArrangementReadPipeline finish, with %lu bytes loaded from %lu categories\n", readAmount,
+                       arrangementVersion);
+            } else {
+                printf("Do not need arrangement, skip\n");
+                GlobalMetadataManagerPtr->tableRolling();
+                arrangementTask->countdownLatch->countDown();
+            }
         }
-
-        uint64_t arrangementVersion = arrangementTask->arrangementVersion;
-
-        if (likely(arrangementVersion > 0)) {
-          ArrangementFilterTask *startTask = new ArrangementFilterTask();
-          startTask->startFlag = true;
-          startTask->arrangementVersion = arrangementVersion;
-          GlobalArrangementFilterPipelinePtr->addTask(startTask);
-
-          readClassWithAppend(1, arrangementVersion);
-          for (uint64_t i = 2; i <= arrangementVersion; i++) {
-            readClass(i, arrangementVersion);
-          }
-
-          ArrangementFilterTask *arrangementFilterTask = new ArrangementFilterTask(true);
-          arrangementFilterTask->countdownLatch = arrangementTask->countdownLatch;
-          GlobalArrangementFilterPipelinePtr->addTask(arrangementFilterTask);
-          printf("ArrangementReadPipeline finish, with %lu bytes loaded from %lu categories\n", readAmount,
-                 arrangementVersion);
-        } else {
-          printf("Do not need arrangement, skip\n");
-          GlobalMetadataManagerPtr->tableRolling();
-          arrangementTask->countdownLatch->countDown();
-        }
-      }
     }
 
     uint64_t readClass(uint64_t classId, uint64_t versionId) {
-      uint64_t cid = 0;
-      while (1) {
-        char pathbuffer[512];
-        sprintf(pathbuffer, ClassFilePath.data(), classId, versionId, cid);
-        FileOperator classFile((char *) pathbuffer, FileOpenType::TRY);
-        if (!classFile.ok()) {
-          break;
+        uint64_t cid = 0;
+        while (1) {
+            char pathbuffer[512];
+            sprintf(pathbuffer, ClassFilePath.data(), classId, versionId, cid);
+            FileOperator classFile((char *) pathbuffer, FileOpenType::TRY);
+            if (!classFile.ok()) {
+                break;
+            }
+            uint8_t *buffer = (uint8_t *) malloc(ArrangementReadBufferLength);
+            uint64_t readSize = classFile.read(buffer, ArrangementReadBufferLength);
+
+            uint8_t *decompressedBuffer = (uint8_t *) malloc(ArrangementReadBufferLength);
+            uint64_t decompressedSize = ZSTD_decompress(decompressedBuffer, ArrangementReadBufferLength, buffer,
+                                                        readSize);
+            assert(!ZSTD_isError(decompressedSize));
+            free(buffer);
+
+            readAmount += readSize;
+            ArrangementFilterTask *arrangementFilterTask = new ArrangementFilterTask(decompressedBuffer,
+                                                                                     decompressedSize, classId,
+                                                                                     versionId);
+            GlobalArrangementFilterPipelinePtr->addTask(arrangementFilterTask);
+            remove(pathbuffer);
+            cid++;
         }
-        uint8_t *buffer = (uint8_t *) malloc(ArrangementReadBufferLength);
-        uint64_t readSize = classFile.read(buffer, ArrangementReadBufferLength);
-
-        uint8_t *decompressedBuffer = (uint8_t *) malloc(ArrangementReadBufferLength);
-        uint64_t decompressedSize = ZSTD_decompress(decompressedBuffer, ArrangementReadBufferLength, buffer,
-                                                    readSize);
-        assert(!ZSTD_isError(decompressedSize));
-        free(buffer);
-
-        readAmount += readSize;
-        ArrangementFilterTask *arrangementFilterTask = new ArrangementFilterTask(decompressedBuffer,
-                                                                                 decompressedSize, classId,
-                                                                                 versionId);
+        printf("Read %lu containers from Cat.(%lu,%lu)\n", cid + 1, classId, versionId);
+        ArrangementFilterTask *arrangementFilterTask = new ArrangementFilterTask(true, classId);
         GlobalArrangementFilterPipelinePtr->addTask(arrangementFilterTask);
-        remove(pathbuffer);
-        cid++;
-      }
-      printf("Read %lu containers from Cat.(%lu,%lu)\n", cid + 1, classId, versionId);
-      ArrangementFilterTask *arrangementFilterTask = new ArrangementFilterTask(true, classId);
-      GlobalArrangementFilterPipelinePtr->addTask(arrangementFilterTask);
 
-      return 0;
+        return 0;
     }
 
     uint64_t readClassWithAppend(uint64_t classId, uint64_t versionId) {
-      uint64_t cid = 0;
-      while (1) {
-        char pathbuffer[512];
-        sprintf(pathbuffer, ClassFilePath.data(), classId, versionId, cid);
-        FileOperator classFile((char *) pathbuffer, FileOpenType::TRY);
-        if (!classFile.ok()) {
-          break;
+        uint64_t cid = 0;
+        while (1) {
+            char pathbuffer[512];
+            sprintf(pathbuffer, ClassFilePath.data(), classId, versionId, cid);
+            FileOperator classFile((char *) pathbuffer, FileOpenType::TRY);
+            if (!classFile.ok()) {
+                break;
+            }
+            uint8_t *buffer = (uint8_t *) malloc(ArrangementReadBufferLength);
+            uint64_t readSize = classFile.read(buffer, ArrangementReadBufferLength);
+
+            uint8_t *decompressedBuffer = (uint8_t *) malloc(ArrangementReadBufferLength);
+            uint64_t decompressedSize = ZSTD_decompress(decompressedBuffer, ArrangementReadBufferLength, buffer,
+                                                        readSize);
+            assert(!ZSTD_isError(decompressedSize));
+            free(buffer);
+
+            readAmount += readSize;
+            ArrangementFilterTask *arrangementFilterTask = new ArrangementFilterTask(decompressedBuffer,
+                                                                                     decompressedSize, classId,
+                                                                                     versionId);
+            GlobalArrangementFilterPipelinePtr->addTask(arrangementFilterTask);
+            remove(pathbuffer);
+            cid++;
         }
-        uint8_t *buffer = (uint8_t *) malloc(ArrangementReadBufferLength);
-        uint64_t readSize = classFile.read(buffer, ArrangementReadBufferLength);
+        printf("Read %lu containers from Cat.(%lu,%lu)\n", cid, classId, versionId);
 
-        uint8_t *decompressedBuffer = (uint8_t *) malloc(ArrangementReadBufferLength);
-        uint64_t decompressedSize = ZSTD_decompress(decompressedBuffer, ArrangementReadBufferLength, buffer,
-                                                    readSize);
-        assert(!ZSTD_isError(decompressedSize));
-        free(buffer);
+        cid = 0;
+        while (1) {
+            char pathbuffer[512];
+            sprintf(pathbuffer, ClassFileAppendPath.data(), classId, versionId, cid);
+            FileOperator classFile((char *) pathbuffer, FileOpenType::TRY);
+            if (!classFile.ok()) {
+                break;
+            }
+            uint8_t *buffer = (uint8_t *) malloc(ArrangementReadBufferLength);
+            uint64_t readSize = classFile.read(buffer, ArrangementReadBufferLength);
 
-        readAmount += readSize;
-        ArrangementFilterTask *arrangementFilterTask = new ArrangementFilterTask(decompressedBuffer,
-                                                                                 decompressedSize, classId,
-                                                                                 versionId);
-        GlobalArrangementFilterPipelinePtr->addTask(arrangementFilterTask);
-        remove(pathbuffer);
-        cid++;
-      }
-      printf("Read %lu containers from Cat.(%lu,%lu)\n", cid, classId, versionId);
+            uint8_t *decompressedBuffer = (uint8_t *) malloc(ArrangementReadBufferLength);
+            uint64_t decompressedSize = ZSTD_decompress(decompressedBuffer, ArrangementReadBufferLength, buffer,
+                                                        readSize);
+            assert(!ZSTD_isError(decompressedSize));
+            free(buffer);
 
-      cid = 0;
-      while (1) {
-        char pathbuffer[512];
-        sprintf(pathbuffer, ClassFileAppendPath.data(), classId, versionId, cid);
-        FileOperator classFile((char *) pathbuffer, FileOpenType::TRY);
-        if (!classFile.ok()) {
-          break;
+            readAmount += readSize;
+            ArrangementFilterTask *arrangementFilterTask = new ArrangementFilterTask(decompressedBuffer,
+                                                                                     decompressedSize, classId,
+                                                                                     versionId);
+            GlobalArrangementFilterPipelinePtr->addTask(arrangementFilterTask);
+            remove(pathbuffer);
+            cid++;
         }
-        uint8_t *buffer = (uint8_t *) malloc(ArrangementReadBufferLength);
-        uint64_t readSize = classFile.read(buffer, ArrangementReadBufferLength);
-
-        uint8_t *decompressedBuffer = (uint8_t *) malloc(ArrangementReadBufferLength);
-        uint64_t decompressedSize = ZSTD_decompress(decompressedBuffer, ArrangementReadBufferLength, buffer,
-                                                    readSize);
-        assert(!ZSTD_isError(decompressedSize));
-        free(buffer);
-
-        readAmount += readSize;
-        ArrangementFilterTask *arrangementFilterTask = new ArrangementFilterTask(decompressedBuffer,
-                                                                                 decompressedSize, classId,
-                                                                                 versionId);
+        printf("Read %lu containers from Cat.(%lu,%lu)_append\n", cid, classId, versionId);
+        ArrangementFilterTask *arrangementFilterTask = new ArrangementFilterTask(true, classId);
         GlobalArrangementFilterPipelinePtr->addTask(arrangementFilterTask);
-        remove(pathbuffer);
-        cid++;
-      }
-      printf("Read %lu containers from Cat.(%lu,%lu)_append\n", cid, classId, versionId);
-      ArrangementFilterTask *arrangementFilterTask = new ArrangementFilterTask(true, classId);
-      GlobalArrangementFilterPipelinePtr->addTask(arrangementFilterTask);
-      return 0;
+        return 0;
     }
 
 

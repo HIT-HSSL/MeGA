@@ -43,165 +43,165 @@ std::string KVPath;
 bool DeltaSwitch;
 
 uint64_t do_backup(const std::string &path) {
-  StorageTask storageTask;
-  CountdownLatch countdownLatch(5); // there are 5 pipelines in the workflow of write.
-  storageTask.path = path;
-  storageTask.countdownLatch = &countdownLatch;
-  storageTask.fileID = TotalVersion;
-  GlobalReadPipelinePtr->addTask(&storageTask);
-  countdownLatch.wait();
-  return storageTask.length;
+    StorageTask storageTask;
+    CountdownLatch countdownLatch(5); // there are 5 pipelines in the workflow of write.
+    storageTask.path = path;
+    storageTask.countdownLatch = &countdownLatch;
+    storageTask.fileID = TotalVersion;
+    GlobalReadPipelinePtr->addTask(&storageTask);
+    countdownLatch.wait();
+    return storageTask.length;
 }
 
 int do_restore(uint64_t version, uint64_t fallBehind) {
-  struct timeval t0, t1;
+    struct timeval t0, t1;
 
-  if (version == -1) version = TotalVersion;
+    if (version == -1) version = TotalVersion;
 
-  char recipePath[256];
-  sprintf(recipePath, LogicFilePath.data(), version);
-  CountdownLatch countdownLatch(1);
+    char recipePath[256];
+    sprintf(recipePath, LogicFilePath.data(), version);
+    CountdownLatch countdownLatch(1);
 
-  RestoreTask restoreTask = {
-          TotalVersion,
-          version,
-          fallBehind
-  };
+    RestoreTask restoreTask = {
+            TotalVersion,
+            version,
+            fallBehind
+    };
 
-  GlobalRestoreReadPipelinePtr = new RestoreReadPipeline();
-  GlobalRestoreDecomPipelinePtr = new RestoreDecomPipeline();
-  GlobalRestoreWritePipelinePtr = new RestoreWritePipeline(FLAGS_RestorePath, &countdownLatch);  // order is important.
-  GlobalRestoreParserPipelinePtr = new RestoreParserPipeline(version, recipePath);  // order is important.
+    GlobalRestoreReadPipelinePtr = new RestoreReadPipeline();
+    GlobalRestoreDecomPipelinePtr = new RestoreDecomPipeline();
+    GlobalRestoreWritePipelinePtr = new RestoreWritePipeline(FLAGS_RestorePath, &countdownLatch);  // order is important.
+    GlobalRestoreParserPipelinePtr = new RestoreParserPipeline(version, recipePath);  // order is important.
 
-  gettimeofday(&t0, NULL);
-  GlobalRestoreReadPipelinePtr->addTask(&restoreTask);
-  countdownLatch.wait();
-  gettimeofday(&t1, NULL);
-  uint64_t duration = (t1.tv_sec - t0.tv_sec) * 1000000 + (t1.tv_usec - t0.tv_usec);
-  printf("Total duration : %lu, speed : %f MB/s\n", duration,
-         (float) GlobalRestoreWritePipelinePtr->getTotalSize() / duration);
+    gettimeofday(&t0, NULL);
+    GlobalRestoreReadPipelinePtr->addTask(&restoreTask);
+    countdownLatch.wait();
+    gettimeofday(&t1, NULL);
+    uint64_t duration = (t1.tv_sec - t0.tv_sec) * 1000000 + (t1.tv_usec - t0.tv_usec);
+    printf("Total duration : %lu, speed : %f MB/s\n", duration,
+           (float) GlobalRestoreWritePipelinePtr->getTotalSize() / duration);
 
-  delete GlobalRestoreReadPipelinePtr;
-  delete GlobalRestoreDecomPipelinePtr;
-  delete GlobalRestoreParserPipelinePtr;
-  delete GlobalRestoreWritePipelinePtr;
+    delete GlobalRestoreReadPipelinePtr;
+    delete GlobalRestoreDecomPipelinePtr;
+    delete GlobalRestoreParserPipelinePtr;
+    delete GlobalRestoreWritePipelinePtr;
 
-  return 0;
+    return 0;
 }
 
 int do_arrangement() {
-  printf("Arrangement Task: Version %lu\n", TotalVersion - 1);
-  CountdownLatch arrangementLatch(1);
-  ArrangementTask arrangementTask = {
-          TotalVersion - 1, &arrangementLatch,
-  };
-  GlobalArrangementReadPipelinePtr->addTask(&arrangementTask);
-  arrangementLatch.wait();
+    printf("Arrangement Task: Version %lu\n", TotalVersion - 1);
+    CountdownLatch arrangementLatch(1);
+    ArrangementTask arrangementTask = {
+            TotalVersion - 1, &arrangementLatch,
+    };
+    GlobalArrangementReadPipelinePtr->addTask(&arrangementTask);
+    arrangementLatch.wait();
 }
 
 int do_delete() {
-  printf("------------------------Deleting----------------------\n");
-  printf("%lu versions exist, delete the earliest version\n", TotalVersion);
-  printf("Delete Task..\n");
-  Eliminator eliminator;
-  eliminator.run(TotalVersion);
-  TotalVersion--;
+    printf("------------------------Deleting----------------------\n");
+    printf("%lu versions exist, delete the earliest version\n", TotalVersion);
+    printf("Delete Task..\n");
+    Eliminator eliminator;
+    eliminator.run(TotalVersion);
+    TotalVersion--;
 }
 
 int main(int argc, char **argv) {
-  gflags::ParseCommandLineFlags(&argc, &argv, true);
-  std::string statusStr("status");
-  std::string restoreStr("restore");
-  std::string writeStr("write");
-  std::string batchStr("batch");
-  std::string eliminateStr("delete");
-  DeltaSwitch = FLAGS_delta;
+    gflags::ParseCommandLineFlags(&argc, &argv, true);
+    std::string statusStr("status");
+    std::string restoreStr("restore");
+    std::string writeStr("write");
+    std::string batchStr("batch");
+    std::string eliminateStr("delete");
+    DeltaSwitch = FLAGS_delta;
 
-  Manifest manifest;
-  {
-    ConfigReader configReader(FLAGS_ConfigFile);
-    ManifestReader manifestReader(&manifest);
-    TotalVersion = manifest.TotalVersion;
-  }
-
-  if (FLAGS_task == writeStr) {
-
-    // pipelines init
-    //------------------------------------------------------
-    GlobalReadPipelinePtr = new ReadFilePipeline();
-    GlobalChunkingPipelinePtr = new ChunkingPipeline();
-    GlobalHashingPipelinePtr = new HashingPipeline();
-    GlobalDeduplicationPipelinePtr = new DeduplicationPipeline();
-    GlobalWriteFilePipelinePtr = new WriteFilePipeline();
-    GlobalMetadataManagerPtr = new MetadataManager();
-    GlobalArrangementReadPipelinePtr = new ArrangementReadPipeline();
-    GlobalArrangementFilterPipelinePtr = new ArrangementFilterPipeline();
-    GlobalArrangementWritePipelinePtr = new ArrangementWritePipeline();
-    //------------------------------------------------------
-
-    if (TotalVersion != 0)
-      GlobalMetadataManagerPtr->load();
-
-    uint64_t dedupDuration = 0, arrDuration = 0;
-    std::string workloadPath = FLAGS_InputFile;
-    uint64_t taskLength = 0;
-
+    Manifest manifest;
     {
-      TotalVersion++;
-      printf("-----------------------Backing up-----------------------\n");
-      printf("Dedup Task: %s\n", workloadPath.data());
-      struct timeval t0, t1;
-      gettimeofday(&t0, NULL);
-
-      taskLength = do_backup(workloadPath);
-
-      gettimeofday(&t1, NULL);
-      uint64_t singleDedup = (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
-      printf("[CheckPoint:main] InitTime:%lu, EndTime:%lu\n", t0.tv_sec * 1000000 + t0.tv_usec,
-             t1.tv_sec * 1000000 + t1.tv_usec);
-      dedupDuration += singleDedup;
-      printf("Backup duration:%lu us, Backup Size:%lu, Speed:%fMB/s\n", singleDedup, taskLength,
-             (float) taskLength / singleDedup);
-      GlobalReadPipelinePtr->getStatistics();
-      GlobalChunkingPipelinePtr->getStatistics();
-      GlobalHashingPipelinePtr->getStatistics();
-      GlobalDeduplicationPipelinePtr->getStatistics();
-      GlobalWriteFilePipelinePtr->getStatistics();
-      printf("BackupSize:%lu, AfterDedup:%lu, AfterDelta:%lu, AfterCompression:%lu, Total Reduction Ratio:%f\n",
-             GlobalMetadataManagerPtr->getTotalLength(),
-             GlobalMetadataManagerPtr->getAfterDedup(),
-             GlobalMetadataManagerPtr->getAfterDelta(),
-             GlobalMetadataManagerPtr->getAfterCompression(),
-             (float) (GlobalMetadataManagerPtr->getTotalLength()) /
-             (GlobalMetadataManagerPtr->getAfterCompression()));
-
-      printf("----------------------Arrangement------------------------\n");
-      if (FLAGS_ApplyArrangement) {
-        gettimeofday(&t0, NULL);
-        do_arrangement();
-        gettimeofday(&t1, NULL);
-        uint64_t singleArr = (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
-        arrDuration += singleArr;
-        printf("Arrangement duration : %lu\n", singleArr);
-      } else {
-        printf("Arrangement is disabled by user.\n");
-        manifest.ArrangementFallBehind++;
-      }
-
-      printf("------------------------Retention----------------------\n");
-      if (TotalVersion > RetentionTime) {
-        do_delete();
-      } else {
-        printf("Only %lu versions exist, and the retention is %lu, deletion is not required.\n", TotalVersion,
-               RetentionTime);
-      }
+        ConfigReader configReader(FLAGS_ConfigFile);
+        ManifestReader manifestReader(&manifest);
+        TotalVersion = manifest.TotalVersion;
     }
 
-    {
-      manifest.TotalVersion = TotalVersion;
-      ManifestWriter manifestWriter(manifest);
-      GlobalMetadataManagerPtr->save();
-    }
+    if (FLAGS_task == writeStr) {
+
+        // pipelines init
+        //------------------------------------------------------
+        GlobalReadPipelinePtr = new ReadFilePipeline();
+        GlobalChunkingPipelinePtr = new ChunkingPipeline();
+        GlobalHashingPipelinePtr = new HashingPipeline();
+        GlobalDeduplicationPipelinePtr = new DeduplicationPipeline();
+        GlobalWriteFilePipelinePtr = new WriteFilePipeline();
+        GlobalMetadataManagerPtr = new MetadataManager();
+        GlobalArrangementReadPipelinePtr = new ArrangementReadPipeline();
+        GlobalArrangementFilterPipelinePtr = new ArrangementFilterPipeline();
+        GlobalArrangementWritePipelinePtr = new ArrangementWritePipeline();
+        //------------------------------------------------------
+
+        if (TotalVersion != 0)
+            GlobalMetadataManagerPtr->load();
+
+        uint64_t dedupDuration = 0, arrDuration = 0;
+        std::string workloadPath = FLAGS_InputFile;
+        uint64_t taskLength = 0;
+
+        {
+            TotalVersion++;
+            printf("-----------------------Backing up-----------------------\n");
+            printf("Dedup Task: %s\n", workloadPath.data());
+            struct timeval t0, t1;
+            gettimeofday(&t0, NULL);
+
+            taskLength = do_backup(workloadPath);
+
+            gettimeofday(&t1, NULL);
+            uint64_t singleDedup = (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
+            printf("[CheckPoint:main] InitTime:%lu, EndTime:%lu\n", t0.tv_sec * 1000000 + t0.tv_usec,
+                   t1.tv_sec * 1000000 + t1.tv_usec);
+            dedupDuration += singleDedup;
+            printf("Backup duration:%lu us, Backup Size:%lu, Speed:%fMB/s\n", singleDedup, taskLength,
+                   (float) taskLength / singleDedup);
+            GlobalReadPipelinePtr->getStatistics();
+            GlobalChunkingPipelinePtr->getStatistics();
+            GlobalHashingPipelinePtr->getStatistics();
+            GlobalDeduplicationPipelinePtr->getStatistics();
+            GlobalWriteFilePipelinePtr->getStatistics();
+            printf("BackupSize:%lu, AfterDedup:%lu, AfterDelta:%lu, AfterCompression:%lu, Total Reduction Ratio:%f\n",
+                   GlobalMetadataManagerPtr->getTotalLength(),
+                   GlobalMetadataManagerPtr->getAfterDedup(),
+                   GlobalMetadataManagerPtr->getAfterDelta(),
+                   GlobalMetadataManagerPtr->getAfterCompression(),
+                   (float) (GlobalMetadataManagerPtr->getTotalLength()) /
+                   (GlobalMetadataManagerPtr->getAfterCompression()));
+
+            printf("----------------------Arrangement------------------------\n");
+            if (FLAGS_ApplyArrangement) {
+                gettimeofday(&t0, NULL);
+                do_arrangement();
+                gettimeofday(&t1, NULL);
+                uint64_t singleArr = (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
+                arrDuration += singleArr;
+                printf("Arrangement duration : %lu\n", singleArr);
+            } else {
+                printf("Arrangement is disabled by user.\n");
+                manifest.ArrangementFallBehind++;
+            }
+
+            printf("------------------------Retention----------------------\n");
+            if (TotalVersion > RetentionTime) {
+                do_delete();
+            } else {
+                printf("Only %lu versions exist, and the retention is %lu, deletion is not required.\n", TotalVersion,
+                       RetentionTime);
+            }
+        }
+
+        {
+            manifest.TotalVersion = TotalVersion;
+            ManifestWriter manifestWriter(manifest);
+            GlobalMetadataManagerPtr->save();
+        }
 
 //        printf("==============================================\n");
 //        printf("Total deduplication duration:%lu us, Total Size:%lu, Speed:%fMB/s, arrange duration:%lu\n",
@@ -211,45 +211,45 @@ int main(int argc, char **argv) {
 //        printf("done\n");
 //        printf("==============================================\n");
 
-    // pipelines release
-    //------------------------------------------------------
-    delete GlobalArrangementReadPipelinePtr;
-    delete GlobalArrangementFilterPipelinePtr;
-    delete GlobalArrangementWritePipelinePtr;
-    delete GlobalReadPipelinePtr;
-    delete GlobalChunkingPipelinePtr;
-    delete GlobalHashingPipelinePtr;
-    delete GlobalDeduplicationPipelinePtr;
-    delete GlobalWriteFilePipelinePtr;
-    delete GlobalMetadataManagerPtr;
-    //------------------------------------------------------
+        // pipelines release
+        //------------------------------------------------------
+        delete GlobalArrangementReadPipelinePtr;
+        delete GlobalArrangementFilterPipelinePtr;
+        delete GlobalArrangementWritePipelinePtr;
+        delete GlobalReadPipelinePtr;
+        delete GlobalChunkingPipelinePtr;
+        delete GlobalHashingPipelinePtr;
+        delete GlobalDeduplicationPipelinePtr;
+        delete GlobalWriteFilePipelinePtr;
+        delete GlobalMetadataManagerPtr;
+        //------------------------------------------------------
 
-  } else if (FLAGS_task == restoreStr) {
-    do_restore(FLAGS_RestoreRecipe, manifest.ArrangementFallBehind);
-  } else if (FLAGS_task == eliminateStr) {
-    Eliminator eliminator;
-    eliminator.run(TotalVersion);
-    TotalVersion--;
-    {
-      manifest.TotalVersion = TotalVersion;
-      ManifestWriter manifestWriter(manifest);
+    } else if (FLAGS_task == restoreStr) {
+        do_restore(FLAGS_RestoreRecipe, manifest.ArrangementFallBehind);
+    } else if (FLAGS_task == eliminateStr) {
+        Eliminator eliminator;
+        eliminator.run(TotalVersion);
+        TotalVersion--;
+        {
+            manifest.TotalVersion = TotalVersion;
+            ManifestWriter manifestWriter(manifest);
+        }
+    } else if (FLAGS_task == statusStr) {
+        printf("Totally %lu versions stored.\n", manifest.TotalVersion);
+        printf("Arrangement fall  %lu versions behind.\n", manifest.ArrangementFallBehind);
+    } else {
+        printf("=================================================\n");
+        printf("Usage: MeGA [args..]\n");
+        printf("1. Write a series of versions into system\n");
+        printf("./MeGA --ConfigFile=[config file] --task=write --InputFile=[backup workload]\n");
+        printf("2. Restore a version of from the system\n");
+        printf("./MeGA --ConfigFile=config.toml --task=restore --RestorePath=[where the restored file is to locate] --RestoreRecipe=[which version to restore(1 ~ no. of the last retained version)]\n");
+        printf("3. Check status of the system\n");
+        printf("./MeGA --task=status\n");
+        printf("--------------------------------------------------\n");
+        printf("more information with --help\n");
+        printf("=================================================\n");
+
     }
-  } else if (FLAGS_task == statusStr) {
-    printf("Totally %lu versions stored.\n", manifest.TotalVersion);
-    printf("Arrangement fall  %lu versions behind.\n", manifest.ArrangementFallBehind);
-  } else {
-    printf("=================================================\n");
-    printf("Usage: MeGA [args..]\n");
-    printf("1. Write a series of versions into system\n");
-    printf("./MeGA --ConfigFile=[config file] --task=write --InputFile=[backup workload]\n");
-    printf("2. Restore a version of from the system\n");
-    printf("./MeGA --ConfigFile=config.toml --task=restore --RestorePath=[where the restored file is to locate] --RestoreRecipe=[which version to restore(1 ~ no. of the last retained version)]\n");
-    printf("3. Check status of the system\n");
-    printf("./MeGA --task=status\n");
-    printf("--------------------------------------------------\n");
-    printf("more information with --help\n");
-    printf("=================================================\n");
-
-  }
 
 }

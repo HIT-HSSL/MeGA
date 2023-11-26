@@ -22,9 +22,9 @@ extern std::string ManifestPath;
 class ManifestWriter {
 public:
     ManifestWriter(const Manifest &manifest) {
-      FileOperator fileOperator((char *) ManifestPath.data(), FileOpenType::Write);
-      assert(fileOperator.ok());
-      fileOperator.write((uint8_t *) &manifest, sizeof(Manifest));
+        FileOperator fileOperator((char *) ManifestPath.data(), FileOpenType::Write);
+        assert(fileOperator.ok());
+        fileOperator.write((uint8_t *) &manifest, sizeof(Manifest));
     }
 
 private:
@@ -33,17 +33,17 @@ private:
 class ManifestReader {
 public:
     ManifestReader(struct Manifest *manifest) {
-      printf("-----------------------Manifest-----------------------\n");
-      printf("Loading Manifest..\n");
-      FileOperator fileOperator((char *) ManifestPath.data(), FileOpenType::Read);
-      if (fileOperator.getStatus() == -1) {
-        printf("0 version in storage\n");
-        manifest->TotalVersion = 0;
-        manifest->ArrangementFallBehind = 0;
-      } else {
-        fileOperator.read((uint8_t *) manifest, sizeof(Manifest));
-        printf("%lu versions in storage\n", manifest->TotalVersion);
-      };
+        printf("-----------------------Manifest-----------------------\n");
+        printf("Loading Manifest..\n");
+        FileOperator fileOperator((char *) ManifestPath.data(), FileOpenType::Read);
+        if (fileOperator.getStatus() == -1) {
+            printf("0 version in storage\n");
+            manifest->TotalVersion = 0;
+            manifest->ArrangementFallBehind = 0;
+        } else {
+            fileOperator.read((uint8_t *) manifest, sizeof(Manifest));
+            printf("%lu versions in storage\n", manifest->TotalVersion);
+        };
     }
 
 private:

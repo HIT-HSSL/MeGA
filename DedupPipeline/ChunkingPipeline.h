@@ -31,374 +31,374 @@ public:
               runningFlag(true),
               mutexLock(),
               condition(mutexLock) {
-      if (FLAGS_ChunkingMethod == std::string("FastCDC")) {
-        rollHash = new Gear();
-        matrix = rollHash->getMatrix();
-        worker = new std::thread(std::bind(&ChunkingPipeline::chunkingWorkerCallbackFastCDC, this));
-      } else if (FLAGS_ChunkingMethod == std::string("Rabin")) {
-        worker = new std::thread(std::bind(&ChunkingPipeline::chunkingWorkerCallbackRabin, this));
-      } else if (FLAGS_ChunkingMethod == std::string("Fixed")) {
-        worker = new std::thread(std::bind(&ChunkingPipeline::chunkingWorkerCallbackFixed, this));
-      }
-      MaxChunkSize = FLAGS_ExpectSize * 8;
-      MinChunkSize = FLAGS_ExpectSize / 4;
+        if (FLAGS_ChunkingMethod == std::string("FastCDC")) {
+            rollHash = new Gear();
+            matrix = rollHash->getMatrix();
+            worker = new std::thread(std::bind(&ChunkingPipeline::chunkingWorkerCallbackFastCDC, this));
+        } else if (FLAGS_ChunkingMethod == std::string("Rabin")) {
+            worker = new std::thread(std::bind(&ChunkingPipeline::chunkingWorkerCallbackRabin, this));
+        } else if (FLAGS_ChunkingMethod == std::string("Fixed")) {
+            worker = new std::thread(std::bind(&ChunkingPipeline::chunkingWorkerCallbackFixed, this));
+        }
+        MaxChunkSize = FLAGS_ExpectSize * 8;
+        MinChunkSize = FLAGS_ExpectSize / 4;
 
-      printf("ChunkingPipeline inited, Max chunk size=%d, Min chunk size=%d\n", MaxChunkSize, MinChunkSize);
+        printf("ChunkingPipeline inited, Max chunk size=%d, Min chunk size=%d\n", MaxChunkSize, MinChunkSize);
     }
 
     int addTask(ChunkTask chunkTask) {
-      MutexLockGuard mutexLockGuard(mutexLock);
-      taskList.push_back(chunkTask);
-      taskAmount++;
-      condition.notify();
+        MutexLockGuard mutexLockGuard(mutexLock);
+        taskList.push_back(chunkTask);
+        taskAmount++;
+        condition.notify();
     }
 
     void getStatistics() {
-      printf("[DedupChunking] total : %lu\n", duration);
+        printf("[DedupChunking] total : %lu\n", duration);
     }
 
     ~ChunkingPipeline() {
-      delete rollHash;
-      runningFlag = false;
-      condition.notifyAll();
-      worker->join();
-      delete worker;
+        delete rollHash;
+        runningFlag = false;
+        condition.notifyAll();
+        worker->join();
+        delete worker;
     }
 
 private:
 
     void chunkingWorkerCallbackFastCDC() {
-      pthread_setname_np(pthread_self(), "Chunking Thread");
-      mh_sha1_ctx ctx;
-      //SHA_CTX ctx;
-      uint64_t posPtr = 0;
-      uint64_t base = 0;
+        pthread_setname_np(pthread_self(), "Chunking Thread");
+        mh_sha1_ctx ctx;
+        //SHA_CTX ctx;
+        uint64_t posPtr = 0;
+        uint64_t base = 0;
 
-      if (FLAGS_ExpectSize == 8192) {
-        chunkMask = 0x0000d90f03530000;//32
-        chunkMask2 = 0x0000d90003530000;//2
-      } else if (FLAGS_ExpectSize == 4096) {
-        chunkMask = 0x0000d90703530000;//16
-        chunkMask2 = 0x0000590003530000;//1
-      } else if (FLAGS_ExpectSize == 16384) {
-        chunkMask = 0x0000d90f13530000;//64
-        chunkMask2 = 0x0000d90103530000;//4
-      }
-
-      uint64_t counter = 0;
-      uint8_t *data = nullptr;
-      DedupTask dedupTask;
-      CountdownLatch *cd;
-      bool newFileFlag = true;
-      std::list<DedupTask> saveList;
-      ChunkTask chunkTask;
-      bool flag = false;
-
-      struct timeval t1, t0;
-      struct timeval ct0, ct1;
-      struct timeval initTime, endTime;
-
-      while (runningFlag) {
-        {
-          MutexLockGuard mutexLockGuard(mutexLock);
-          while (!taskAmount) {
-            condition.wait();
-            if (unlikely(!runningFlag)) break;
-          }
-          if (unlikely(!runningFlag)) continue;
-          taskAmount--;
-          chunkTask = taskList.front();
-          taskList.pop_front();
+        if (FLAGS_ExpectSize == 8192) {
+            chunkMask = 0x0000d90f03530000;//32
+            chunkMask2 = 0x0000d90003530000;//2
+        } else if (FLAGS_ExpectSize == 4096) {
+            chunkMask = 0x0000d90703530000;//16
+            chunkMask2 = 0x0000590003530000;//1
+        } else if (FLAGS_ExpectSize == 16384) {
+            chunkMask = 0x0000d90f13530000;//64
+            chunkMask2 = 0x0000d90103530000;//4
         }
 
-        if (unlikely(newFileFlag)) {
-          posPtr = 0;
-          base = 0;
-          data = chunkTask.buffer;
-          newFileFlag = false;
-          flag = false;
-          duration = 0;
-          gettimeofday(&initTime, NULL);
-        }
-        uint64_t end = chunkTask.end;
+        uint64_t counter = 0;
+        uint8_t *data = nullptr;
+        DedupTask dedupTask;
+        CountdownLatch *cd;
+        bool newFileFlag = true;
+        std::list<DedupTask> saveList;
+        ChunkTask chunkTask;
+        bool flag = false;
 
-        dedupTask.buffer = chunkTask.buffer;
-        dedupTask.length = chunkTask.length;
-        dedupTask.fileID = chunkTask.fileID;
+        struct timeval t1, t0;
+        struct timeval ct0, ct1;
+        struct timeval initTime, endTime;
 
-        gettimeofday(&t0, NULL);
-        if (likely(!chunkTask.countdownLatch)) {
-          while (end - posPtr > MaxChunkSize) {
-            int chunkSize = fastcdc_chunk_data(data + posPtr, end - posPtr);
-            dedupTask.pos = base;
-            dedupTask.length = chunkSize;
-            dedupTask.index++;
-
-            GlobalHashingPipelinePtr->addTask(dedupTask);
-
-            base += chunkSize;
-            posPtr += chunkSize;
-          }
-        } else {
-          while (end != posPtr) {
-            int chunkSize = fastcdc_chunk_data(data + posPtr, end - posPtr);
-            dedupTask.pos = base;
-            dedupTask.length = chunkSize;
-            dedupTask.index++;
-            if (end == posPtr + chunkSize) {
-              dedupTask.countdownLatch = chunkTask.countdownLatch;
-              flag = true;
+        while (runningFlag) {
+            {
+                MutexLockGuard mutexLockGuard(mutexLock);
+                while (!taskAmount) {
+                    condition.wait();
+                    if (unlikely(!runningFlag)) break;
+                }
+                if (unlikely(!runningFlag)) continue;
+                taskAmount--;
+                chunkTask = taskList.front();
+                taskList.pop_front();
             }
 
-            GlobalHashingPipelinePtr->addTask(dedupTask);
+            if (unlikely(newFileFlag)) {
+                posPtr = 0;
+                base = 0;
+                data = chunkTask.buffer;
+                newFileFlag = false;
+                flag = false;
+                duration = 0;
+                gettimeofday(&initTime, NULL);
+            }
+            uint64_t end = chunkTask.end;
 
-            base += chunkSize;
-            posPtr += chunkSize;
-          }
+            dedupTask.buffer = chunkTask.buffer;
+            dedupTask.length = chunkTask.length;
+            dedupTask.fileID = chunkTask.fileID;
+
+            gettimeofday(&t0, NULL);
+            if (likely(!chunkTask.countdownLatch)) {
+                while (end - posPtr > MaxChunkSize) {
+                    int chunkSize = fastcdc_chunk_data(data + posPtr, end - posPtr);
+                    dedupTask.pos = base;
+                    dedupTask.length = chunkSize;
+                    dedupTask.index++;
+
+                    GlobalHashingPipelinePtr->addTask(dedupTask);
+
+                    base += chunkSize;
+                    posPtr += chunkSize;
+                }
+            } else {
+                while (end != posPtr) {
+                    int chunkSize = fastcdc_chunk_data(data + posPtr, end - posPtr);
+                    dedupTask.pos = base;
+                    dedupTask.length = chunkSize;
+                    dedupTask.index++;
+                    if (end == posPtr + chunkSize) {
+                        dedupTask.countdownLatch = chunkTask.countdownLatch;
+                        flag = true;
+                    }
+
+                    GlobalHashingPipelinePtr->addTask(dedupTask);
+
+                    base += chunkSize;
+                    posPtr += chunkSize;
+                }
+            }
+            if (unlikely(flag)) {
+                chunkTask.countdownLatch->countDown();
+                printf("ChunkingPipeline finish\n");
+                newFileFlag = true;
+                dedupTask.countdownLatch = nullptr;
+                gettimeofday(&endTime, NULL);
+                printf("[CheckPoint:chunking] InitTime:%lu, EndTime:%lu\n",
+                       initTime.tv_sec * 1000000 + initTime.tv_usec, endTime.tv_sec * 1000000 + endTime.tv_usec);
+            }
+            gettimeofday(&t1, NULL);
+            duration += (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
         }
-        if (unlikely(flag)) {
-          chunkTask.countdownLatch->countDown();
-          printf("ChunkingPipeline finish\n");
-          newFileFlag = true;
-          dedupTask.countdownLatch = nullptr;
-          gettimeofday(&endTime, NULL);
-          printf("[CheckPoint:chunking] InitTime:%lu, EndTime:%lu\n",
-                 initTime.tv_sec * 1000000 + initTime.tv_usec, endTime.tv_sec * 1000000 + endTime.tv_usec);
-        }
-        gettimeofday(&t1, NULL);
-        duration += (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
-      }
     }
 
     void chunkingWorkerCallbackRabin() {
-      pthread_setname_np(pthread_self(), "Chunking Thread");
-      mh_sha1_ctx ctx;
-      //SHA_CTX ctx;
-      uint64_t posPtr = 0;
-      uint64_t base = 0;
-      uint64_t fp = 0;
-      const uint64_t chunkMask = 0x0000d90f03530000;
-      const uint64_t chunkMask2 = 0x0000d90003530000;
-      uint64_t rabinMask = FLAGS_ExpectSize - 1;
-      uint64_t counter = 0;
-      uint8_t *data = nullptr;
-      DedupTask dedupTask;
-      CountdownLatch *cd;
-      bool newFileFlag = true;
-      std::list<DedupTask> saveList;
-      ChunkTask chunkTask;
-      uint64_t s = 0, e = 0, cs = 0, n = 0;
+        pthread_setname_np(pthread_self(), "Chunking Thread");
+        mh_sha1_ctx ctx;
+        //SHA_CTX ctx;
+        uint64_t posPtr = 0;
+        uint64_t base = 0;
+        uint64_t fp = 0;
+        const uint64_t chunkMask = 0x0000d90f03530000;
+        const uint64_t chunkMask2 = 0x0000d90003530000;
+        uint64_t rabinMask = FLAGS_ExpectSize - 1;
+        uint64_t counter = 0;
+        uint8_t *data = nullptr;
+        DedupTask dedupTask;
+        CountdownLatch *cd;
+        bool newFileFlag = true;
+        std::list<DedupTask> saveList;
+        ChunkTask chunkTask;
+        uint64_t s = 0, e = 0, cs = 0, n = 0;
 
-      struct timeval t1, t0;
-      struct timeval lt0, lt1;
-      struct timeval ct0, ct1, ct2, ct3, ct4, ct5, ct6;
+        struct timeval t1, t0;
+        struct timeval lt0, lt1;
+        struct timeval ct0, ct1, ct2, ct3, ct4, ct5, ct6;
 
-      while (runningFlag) {
-        {
-          MutexLockGuard mutexLockGuard(mutexLock);
-          while (!taskAmount) {
-            condition.wait();
-            if (!runningFlag) break;
-          }
-          if (!runningFlag) continue;
-          taskAmount--;
-          chunkTask = taskList.front();
-          taskList.pop_front();
-        }
-
-        gettimeofday(&t0, NULL);
-
-        if (newFileFlag) {
-          posPtr = 0;
-          base = 0;
-          fp = 0;
-          data = chunkTask.buffer;
-          newFileFlag = false;
-        }
-        uint64_t end = chunkTask.end;
-
-        dedupTask.buffer = chunkTask.buffer;
-        dedupTask.length = chunkTask.length;
-        dedupTask.fileID = chunkTask.fileID;
-
-        if (!chunkTask.countdownLatch) {
-
-          while (end - posPtr > MaxChunkSize) {
-
-            fp = rollHashRabin.rolling(data + posPtr);
-
-            if ((fp & rabinMask) == 0x78) {
-
-              dedupTask.pos = base;
-              dedupTask.length = posPtr - base + 1;
-              dedupTask.index = order++;
-              cs += posPtr - base + 1;
-              n++;
-
-
-              GlobalHashingPipelinePtr->addTask(dedupTask);
-
-              base = posPtr + 1;
-              posPtr += MinChunkSize;
-
+        while (runningFlag) {
+            {
+                MutexLockGuard mutexLockGuard(mutexLock);
+                while (!taskAmount) {
+                    condition.wait();
+                    if (!runningFlag) break;
+                }
+                if (!runningFlag) continue;
+                taskAmount--;
+                chunkTask = taskList.front();
+                taskList.pop_front();
             }
-            posPtr++;
 
-          }
-        } else {
-          while (posPtr < end) {
-            fp = rollHashRabin.rolling(data + posPtr);
-            if ((fp & rabinMask) == 0x78) {
-              dedupTask.pos = base;
-              dedupTask.length = posPtr - base + 1;
-              dedupTask.index = order++;
-              cs += posPtr - base + 1;
-              n++;
+            gettimeofday(&t0, NULL);
 
-              GlobalHashingPipelinePtr->addTask(dedupTask);
-
-              base = posPtr + 1;
-              posPtr += MinChunkSize;
-
+            if (newFileFlag) {
+                posPtr = 0;
+                base = 0;
+                fp = 0;
+                data = chunkTask.buffer;
+                newFileFlag = false;
             }
-            posPtr++;
-          }
-          if (base != posPtr) {
-            dedupTask.pos = base;
-            dedupTask.length = end - base;
-            dedupTask.index = order++;
+            uint64_t end = chunkTask.end;
 
-            dedupTask.countdownLatch = chunkTask.countdownLatch;
+            dedupTask.buffer = chunkTask.buffer;
+            dedupTask.length = chunkTask.length;
+            dedupTask.fileID = chunkTask.fileID;
 
-            GlobalHashingPipelinePtr->addTask(dedupTask);
-          }
-          chunkTask.countdownLatch->countDown();
-          newFileFlag = true;
-          dedupTask.countdownLatch = nullptr;
+            if (!chunkTask.countdownLatch) {
+
+                while (end - posPtr > MaxChunkSize) {
+
+                    fp = rollHashRabin.rolling(data + posPtr);
+
+                    if ((fp & rabinMask) == 0x78) {
+
+                        dedupTask.pos = base;
+                        dedupTask.length = posPtr - base + 1;
+                        dedupTask.index = order++;
+                        cs += posPtr - base + 1;
+                        n++;
+
+
+                        GlobalHashingPipelinePtr->addTask(dedupTask);
+
+                        base = posPtr + 1;
+                        posPtr += MinChunkSize;
+
+                    }
+                    posPtr++;
+
+                }
+            } else {
+                while (posPtr < end) {
+                    fp = rollHashRabin.rolling(data + posPtr);
+                    if ((fp & rabinMask) == 0x78) {
+                        dedupTask.pos = base;
+                        dedupTask.length = posPtr - base + 1;
+                        dedupTask.index = order++;
+                        cs += posPtr - base + 1;
+                        n++;
+
+                        GlobalHashingPipelinePtr->addTask(dedupTask);
+
+                        base = posPtr + 1;
+                        posPtr += MinChunkSize;
+
+                    }
+                    posPtr++;
+                }
+                if (base != posPtr) {
+                    dedupTask.pos = base;
+                    dedupTask.length = end - base;
+                    dedupTask.index = order++;
+
+                    dedupTask.countdownLatch = chunkTask.countdownLatch;
+
+                    GlobalHashingPipelinePtr->addTask(dedupTask);
+                }
+                chunkTask.countdownLatch->countDown();
+                newFileFlag = true;
+                dedupTask.countdownLatch = nullptr;
+            }
+
+            gettimeofday(&t1, NULL);
+            duration += (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
         }
-
-        gettimeofday(&t1, NULL);
-        duration += (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
-      }
 
     }
 
     int fastcdc_chunk_data(unsigned char *p, uint64_t n) {
 
-      uint64_t fingerprint = 0, digest;
-      int i = MinChunkSize, Mid = MinChunkSize + FLAGS_ExpectSize;
-      //return n;
+        uint64_t fingerprint = 0, digest;
+        int i = MinChunkSize, Mid = MinChunkSize + FLAGS_ExpectSize;
+        //return n;
 
-      if (n <= MinChunkSize) //the minimal  subChunk Size.
-        return n;
-      //windows_reset();
-      if (n > MaxChunkSize)
-        n = MaxChunkSize;
-      else if (n < Mid)
-        Mid = n;
-      while (i < Mid) {
-        fingerprint = (fingerprint << 1) + (matrix[p[i]]);
-        if ((!(fingerprint & chunkMask))) { //AVERAGE*2, *4, *8
-          return i;
+        if (n <= MinChunkSize) //the minimal  subChunk Size.
+            return n;
+        //windows_reset();
+        if (n > MaxChunkSize)
+            n = MaxChunkSize;
+        else if (n < Mid)
+            Mid = n;
+        while (i < Mid) {
+            fingerprint = (fingerprint << 1) + (matrix[p[i]]);
+            if ((!(fingerprint & chunkMask))) { //AVERAGE*2, *4, *8
+                return i;
+            }
+            i++;
         }
-        i++;
-      }
-      while (i < n) {
-        fingerprint = (fingerprint << 1) + (matrix[p[i]]);
-        if ((!(fingerprint & chunkMask2))) { //Average/2, /4, /8
-          return i;
+        while (i < n) {
+            fingerprint = (fingerprint << 1) + (matrix[p[i]]);
+            if ((!(fingerprint & chunkMask2))) { //Average/2, /4, /8
+                return i;
+            }
+            i++;
         }
-        i++;
-      }
-      return i;
+        return i;
     }
 
     void chunkingWorkerCallbackFixed() {
-      pthread_setname_np(pthread_self(), "Chunking Thread");
-      mh_sha1_ctx ctx;
-      //SHA_CTX ctx;
-      uint64_t posPtr = 0;
-      uint64_t base = 0;
+        pthread_setname_np(pthread_self(), "Chunking Thread");
+        mh_sha1_ctx ctx;
+        //SHA_CTX ctx;
+        uint64_t posPtr = 0;
+        uint64_t base = 0;
 
-      uint64_t rabinMask = 8191;
-      uint64_t counter = 0;
-      uint8_t *data = nullptr;
-      DedupTask dedupTask;
-      CountdownLatch *cd;
-      bool newFileFlag = true;
-      std::list<DedupTask> saveList;
-      ChunkTask chunkTask;
-      bool flag = false;
+        uint64_t rabinMask = 8191;
+        uint64_t counter = 0;
+        uint8_t *data = nullptr;
+        DedupTask dedupTask;
+        CountdownLatch *cd;
+        bool newFileFlag = true;
+        std::list<DedupTask> saveList;
+        ChunkTask chunkTask;
+        bool flag = false;
 
-      while (runningFlag) {
-        {
-          MutexLockGuard mutexLockGuard(mutexLock);
-          while (!taskAmount) {
-            condition.wait();
-            if (!runningFlag) return;
-          }
-          taskAmount--;
-          chunkTask = taskList.front();
-          taskList.pop_front();
-        }
-
-        if (newFileFlag) {
-          posPtr = 0;
-          base = 0;
-          data = chunkTask.buffer;
-          newFileFlag = false;
-          flag = false;
-        }
-        uint64_t end = chunkTask.end;
-
-        dedupTask.buffer = chunkTask.buffer;
-        dedupTask.length = chunkTask.length;
-        dedupTask.fileID = chunkTask.fileID;
-
-        if (!chunkTask.countdownLatch) {
-          while (end - posPtr > MaxChunkSize) {
-            int chunkSize = fix_chunk_data(data + posPtr, end - posPtr);
-            dedupTask.pos = base;
-            dedupTask.length = chunkSize;
-            dedupTask.index++;
-            GlobalHashingPipelinePtr->addTask(dedupTask);
-            base += chunkSize;
-            posPtr += chunkSize;
-          }
-        } else {
-          while (end != posPtr) {
-            int chunkSize = fix_chunk_data_end(data + posPtr, end - posPtr);
-            dedupTask.pos = base;
-            dedupTask.length = chunkSize;
-            dedupTask.index++;
-            if (end == posPtr + chunkSize) {
-              dedupTask.countdownLatch = chunkTask.countdownLatch;
-              flag = true;
+        while (runningFlag) {
+            {
+                MutexLockGuard mutexLockGuard(mutexLock);
+                while (!taskAmount) {
+                    condition.wait();
+                    if (!runningFlag) return;
+                }
+                taskAmount--;
+                chunkTask = taskList.front();
+                taskList.pop_front();
             }
-            GlobalHashingPipelinePtr->addTask(dedupTask);
-            base += chunkSize;
-            posPtr += chunkSize;
-          }
-        }
-        if (flag) {
-          chunkTask.countdownLatch->countDown();
-          newFileFlag = true;
-          dedupTask.countdownLatch = nullptr;
-        }
 
-      }
+            if (newFileFlag) {
+                posPtr = 0;
+                base = 0;
+                data = chunkTask.buffer;
+                newFileFlag = false;
+                flag = false;
+            }
+            uint64_t end = chunkTask.end;
+
+            dedupTask.buffer = chunkTask.buffer;
+            dedupTask.length = chunkTask.length;
+            dedupTask.fileID = chunkTask.fileID;
+
+            if (!chunkTask.countdownLatch) {
+                while (end - posPtr > MaxChunkSize) {
+                    int chunkSize = fix_chunk_data(data + posPtr, end - posPtr);
+                    dedupTask.pos = base;
+                    dedupTask.length = chunkSize;
+                    dedupTask.index++;
+                    GlobalHashingPipelinePtr->addTask(dedupTask);
+                    base += chunkSize;
+                    posPtr += chunkSize;
+                }
+            } else {
+                while (end != posPtr) {
+                    int chunkSize = fix_chunk_data_end(data + posPtr, end - posPtr);
+                    dedupTask.pos = base;
+                    dedupTask.length = chunkSize;
+                    dedupTask.index++;
+                    if (end == posPtr + chunkSize) {
+                        dedupTask.countdownLatch = chunkTask.countdownLatch;
+                        flag = true;
+                    }
+                    GlobalHashingPipelinePtr->addTask(dedupTask);
+                    base += chunkSize;
+                    posPtr += chunkSize;
+                }
+            }
+            if (flag) {
+                chunkTask.countdownLatch->countDown();
+                newFileFlag = true;
+                dedupTask.countdownLatch = nullptr;
+            }
+
+        }
     }
 
     int fix_chunk_data(unsigned char *p, uint64_t n) {
-      return FLAGS_ExpectSize;
+        return FLAGS_ExpectSize;
     }
 
     int fix_chunk_data_end(unsigned char *p, uint64_t n) {
-      if (n < FLAGS_ExpectSize) {
-        return n;
-      } else {
-        return FLAGS_ExpectSize;
-      }
+        if (n < FLAGS_ExpectSize) {
+            return n;
+        } else {
+            return FLAGS_ExpectSize;
+        }
     }
 
     RollHash *rollHash;

@@ -29,107 +29,107 @@ uint64_t fileCounter = 0;
 class FileOperator {
 public:
     FileOperator(char *path, FileOpenType fileOpenType) {
-      switch (fileOpenType) {
-        case FileOpenType::Write :
-          file = fopen(path, "wb+");
-          break;
-        case FileOpenType::ReadWrite :
-          file = fopen(path, "rb+");
-          break;
-        case FileOpenType::Append :
-          file = fopen(path, "ab+");
-          break;
-        case FileOpenType::TRY:
-        case FileOpenType::Read:
-        default:
-          file = fopen(path, "rb");
-          break;
-      }
-      if (!file) {
-        if (fileOpenType != FileOpenType::TRY) printf("Can not open file %s : %s\n", path, strerror(errno));
-        status = -1;
-      } else {
-        fileCounter++;
-      }
+        switch (fileOpenType) {
+            case FileOpenType::Write :
+                file = fopen(path, "wb+");
+                break;
+            case FileOpenType::ReadWrite :
+                file = fopen(path, "rb+");
+                break;
+            case FileOpenType::Append :
+                file = fopen(path, "ab+");
+                break;
+            case FileOpenType::TRY:
+            case FileOpenType::Read:
+            default:
+                file = fopen(path, "rb");
+                break;
+        }
+        if (!file) {
+            if (fileOpenType != FileOpenType::TRY) printf("Can not open file %s : %s\n", path, strerror(errno));
+            status = -1;
+        } else {
+            fileCounter++;
+        }
     }
 
     ~FileOperator() {
-      if (file != NULL) {
-        fclose(file);
-        fileCounter--;
-      }
+        if (file != NULL) {
+            fclose(file);
+            fileCounter--;
+        }
     }
 
     int getStatus() {
-      return status;
+        return status;
     }
 
     int ok() {
-      if (status == -1) {
-        return 0;
-      } else {
-        return 1;
-      }
+        if (status == -1) {
+            return 0;
+        } else {
+            return 1;
+        }
     }
 
     size_t read(uint8_t *buffer, uint64_t length) {
-      return fread(buffer, 1, length, file);
+        return fread(buffer, 1, length, file);
     }
 
     size_t pread(uint8_t *buffer, uint64_t offset, uint64_t length) {
-      return pread64(file->_fileno, buffer, length, offset);
+        return pread64(file->_fileno, buffer, length, offset);
     }
 
     size_t write(uint8_t *buffer, uint64_t length) {
-      return fwrite(buffer, 1, length, file);
+        return fwrite(buffer, 1, length, file);
     }
 
     int seek(uint64_t offset) {
-      return fseeko64(file, offset, SEEK_SET);
+        return fseeko64(file, offset, SEEK_SET);
     }
 
     int trunc(uint64_t size) {
-      return ftruncate64(fileno(file), size);
+        return ftruncate64(fileno(file), size);
     }
 
     static uint64_t size(const std::string &path) {
-      struct stat statBuffer;
-      int r = stat(path.c_str(), &statBuffer);
-      if (!r) {
-        return statBuffer.st_size;
-      } else {
-        return 0;
-      }
+        struct stat statBuffer;
+        int r = stat(path.c_str(), &statBuffer);
+        if (!r) {
+            return statBuffer.st_size;
+        } else {
+            return 0;
+        }
 
     }
 
     int fdatasync() {
 //        fflush(file);
-      return ::fdatasync(fileno(file));
+        return ::fdatasync(fileno(file));
     }
 
     int fsync() {
 //        fflush(file);
-      return ::fdatasync(fileno(file));
+        return ::fdatasync(fileno(file));
     }
 
     int getFd() {
-      return fileno(file);
+        return fileno(file);
     }
 
     FILE *getFP() {
-      return file;
+        return file;
     }
 
     int releaseBufferedData() {
-      posix_fadvise(file->_fileno, 0, 0, POSIX_FADV_DONTNEED);
+        posix_fadvise(file->_fileno, 0, 0, POSIX_FADV_DONTNEED);
     }
 
     uint64_t getSize() {
-      fseek(file, 0, SEEK_END);
-      uint64_t result = ftell(file);
-      fseek(file, 0, SEEK_SET);
-      return result;
+        fseek(file, 0, SEEK_END);
+        uint64_t result = ftell(file);
+        fseek(file, 0, SEEK_SET);
+        return result;
     }
 
 private:

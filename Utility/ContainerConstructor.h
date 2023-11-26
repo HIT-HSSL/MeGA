@@ -220,14 +220,14 @@ public:
     }
 
     ~OfflineCompressor() {
+      addTask(NULL);
+      worker->join();
       printf("[ContainerConstructor] Compression Time : %lu\n", compressionTime);
 //        printf("BeforeCompression:%lu, AfterCompression:%lu, CompressionReduce:%lu, CompressionRatio:%f\n",
 //               (uint64_t) sizeBeforeCompression, (uint64_t) sizeAfterCompression,
 //               sizeBeforeCompression - sizeAfterCompression,
 //               (float) sizeBeforeCompression / sizeAfterCompression);
       GlobalMetadataManagerPtr->setAfterCompression(sizeAfterCompression);
-      addTask(NULL);
-      worker->join();
     }
 
 private:

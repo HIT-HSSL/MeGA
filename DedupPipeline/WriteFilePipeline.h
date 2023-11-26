@@ -26,140 +26,140 @@ class WriteFilePipeline {
 public:
     WriteFilePipeline() : runningFlag(true), taskAmount(0), mutexLock(), condition(mutexLock),
                           logicFileOperator(nullptr) {
-      worker = new std::thread(std::bind(&WriteFilePipeline::writeFileCallback, this));
+        worker = new std::thread(std::bind(&WriteFilePipeline::writeFileCallback, this));
     }
 
     int addTask(const WriteTask &writeTask) {
-      MutexLockGuard mutexLockGuard(mutexLock);
-      receiveList.push_back(writeTask);
-      taskAmount++;
-      condition.notify();
+        MutexLockGuard mutexLockGuard(mutexLock);
+        receiveList.push_back(writeTask);
+        taskAmount++;
+        condition.notify();
     }
 
     int getContainer(uint64_t s, uint64_t e, uint64_t c, uint8_t *buffer, uint64_t *length) {
-      return chunkWriterManager->getContainer(s, e, c, buffer, length);
+        return chunkWriterManager->getContainer(s, e, c, buffer, length);
     }
 
     ~WriteFilePipeline() {
-      runningFlag = false;
-      condition.notifyAll();
-      worker->join();
-      delete worker;
+        runningFlag = false;
+        condition.notifyAll();
+        worker->join();
+        delete worker;
     }
 
     void getStatistics() {
-      printf("[DedupWrite] total : %lu\n", duration);
+        printf("[DedupWrite] total : %lu\n", duration);
     }
 
 private:
     void writeFileCallback() {
-      pthread_setname_np(pthread_self(), "Writing Thread");
-      struct timeval t0, t1;
-      struct timeval initTime, endTime;
-      bool newVersionFlag = true;
+        pthread_setname_np(pthread_self(), "Writing Thread");
+        struct timeval t0, t1;
+        struct timeval initTime, endTime;
+        bool newVersionFlag = true;
 
-      BlockHeader blockHeader;
-      uint64_t recipeLength = 0;
+        BlockHeader blockHeader;
+        uint64_t recipeLength = 0;
 
-      while (runningFlag) {
-        {
-          MutexLockGuard mutexLockGuard(mutexLock);
-          while (!taskAmount) {
-            condition.wait();
-            if (unlikely(!runningFlag)) return;
-          }
-          taskAmount = 0;
-          condition.notify();
-          taskList.swap(receiveList);
-        }
+        while (runningFlag) {
+            {
+                MutexLockGuard mutexLockGuard(mutexLock);
+                while (!taskAmount) {
+                    condition.wait();
+                    if (unlikely(!runningFlag)) return;
+                }
+                taskAmount = 0;
+                condition.notify();
+                taskList.swap(receiveList);
+            }
 
-        memset(&blockHeader, 0, sizeof(BlockHeader));
+            memset(&blockHeader, 0, sizeof(BlockHeader));
 
-        gettimeofday(&t0, NULL);
+            gettimeofday(&t0, NULL);
 
-        if (chunkWriterManager == nullptr) {
-          chunkWriterManager = new ContainerConstructor(TotalVersion);
-          duration = 0;
-          gettimeofday(&initTime, NULL);
-        }
+            if (chunkWriterManager == nullptr) {
+                chunkWriterManager = new ContainerConstructor(TotalVersion);
+                duration = 0;
+                gettimeofday(&initTime, NULL);
+            }
 
-        for (auto &writeTask: taskList) {
-          if (!logicFileOperator) {
-            sprintf(buffer, LogicFilePath.c_str(), writeTask.fileID);
-            logicFileOperator = new FileOperator(buffer, FileOpenType::Write);
-            printf("start write\n");
-          }
-          blockHeader = {
-                  writeTask.sha1Fp,
-                  writeTask.deltaTag,
-                  writeTask.length,
-          };
-          switch (writeTask.type) {
-            case 0: //Unique
-              oriBuffer = writeTask.buffer;
-              blockHeader.sFeatures = writeTask.similarityFeatures;
-              chunkWriterManager->writeClass((uint8_t *) &blockHeader, sizeof(BlockHeader),
-                                             writeTask.buffer + writeTask.pos, writeTask.length);
-              logicFileOperator->write((uint8_t *) &blockHeader, sizeof(BlockHeader));
-              //bufferedFileWriter->write((uint8_t * ) & blockHeader, sizeof(BlockHeader));
-              recipeLength += blockHeader.length;
-              break;
-            case 1: //Internal
-              if (writeTask.deltaTag) {
-                blockHeader.baseFP = writeTask.baseFP;
-                blockHeader.oriLength = writeTask.oriLength;
-              }
-              logicFileOperator->write((uint8_t *) &blockHeader, sizeof(BlockHeader));
+            for (auto &writeTask: taskList) {
+                if (!logicFileOperator) {
+                    sprintf(buffer, LogicFilePath.c_str(), writeTask.fileID);
+                    logicFileOperator = new FileOperator(buffer, FileOpenType::Write);
+                    printf("start write\n");
+                }
+                blockHeader = {
+                        writeTask.sha1Fp,
+                        writeTask.deltaTag,
+                        writeTask.length,
+                };
+                switch (writeTask.type) {
+                    case 0: //Unique
+                        oriBuffer = writeTask.buffer;
+                        blockHeader.sFeatures = writeTask.similarityFeatures;
+                        chunkWriterManager->writeClass((uint8_t *) &blockHeader, sizeof(BlockHeader),
+                                                       writeTask.buffer + writeTask.pos, writeTask.length);
+                        logicFileOperator->write((uint8_t *) &blockHeader, sizeof(BlockHeader));
+                        //bufferedFileWriter->write((uint8_t * ) & blockHeader, sizeof(BlockHeader));
+                        recipeLength += blockHeader.length;
+                        break;
+                    case 1: //Internal
+                        if (writeTask.deltaTag) {
+                            blockHeader.baseFP = writeTask.baseFP;
+                            blockHeader.oriLength = writeTask.oriLength;
+                        }
+                        logicFileOperator->write((uint8_t *) &blockHeader, sizeof(BlockHeader));
 //                        bufferedFileWriter->write((uint8_t * ) & blockHeader, sizeof(BlockHeader));
-              recipeLength += blockHeader.length;
-              break;
-            case 2: //Adjacent
-              if (writeTask.deltaTag) {
-                blockHeader.baseFP = writeTask.baseFP;
-                blockHeader.oriLength = writeTask.oriLength;
-              }
-              //bufferedFileWriter->write((uint8_t * ) & blockHeader, sizeof(BlockHeader));
-              logicFileOperator->write((uint8_t *) &blockHeader, sizeof(BlockHeader));
-              recipeLength += blockHeader.length;
-              break;
-            case 4: //Similar
-              blockHeader.baseFP = writeTask.baseFP;
-              blockHeader.oriLength = writeTask.oriLength;
-              chunkWriterManager->writeClass((uint8_t *) &blockHeader, sizeof(BlockHeader),
-                                             writeTask.buffer, writeTask.length);
-              logicFileOperator->write((uint8_t *) &blockHeader, sizeof(BlockHeader));
-              //bufferedFileWriter->write((uint8_t * ) & blockHeader, sizeof(BlockHeader));
-              recipeLength += blockHeader.oriLength;
-              free(writeTask.buffer);
-              break;
-            default:
-              assert(1);
-              break;
-          }
+                        recipeLength += blockHeader.length;
+                        break;
+                    case 2: //Adjacent
+                        if (writeTask.deltaTag) {
+                            blockHeader.baseFP = writeTask.baseFP;
+                            blockHeader.oriLength = writeTask.oriLength;
+                        }
+                        //bufferedFileWriter->write((uint8_t * ) & blockHeader, sizeof(BlockHeader));
+                        logicFileOperator->write((uint8_t *) &blockHeader, sizeof(BlockHeader));
+                        recipeLength += blockHeader.length;
+                        break;
+                    case 4: //Similar
+                        blockHeader.baseFP = writeTask.baseFP;
+                        blockHeader.oriLength = writeTask.oriLength;
+                        chunkWriterManager->writeClass((uint8_t *) &blockHeader, sizeof(BlockHeader),
+                                                       writeTask.buffer, writeTask.length);
+                        logicFileOperator->write((uint8_t *) &blockHeader, sizeof(BlockHeader));
+                        //bufferedFileWriter->write((uint8_t * ) & blockHeader, sizeof(BlockHeader));
+                        recipeLength += blockHeader.oriLength;
+                        free(writeTask.buffer);
+                        break;
+                    default:
+                        assert(1);
+                        break;
+                }
 
-          if (writeTask.countdownLatch) {
-            printf("WritePipeline finish\n");
-            delete logicFileOperator;
-            logicFileOperator = nullptr;
-            delete chunkWriterManager;
-            chunkWriterManager = nullptr;
+                if (writeTask.countdownLatch) {
+                    printf("WritePipeline finish\n");
+                    delete logicFileOperator;
+                    logicFileOperator = nullptr;
+                    delete chunkWriterManager;
+                    chunkWriterManager = nullptr;
+                    gettimeofday(&t1, NULL);
+                    duration += (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
+
+                    gettimeofday(&endTime, NULL);
+                    printf("[CheckPoint:write] InitTime:%lu, EndTime:%lu\n",
+                           initTime.tv_sec * 1000000 + initTime.tv_usec, endTime.tv_sec * 1000000 + endTime.tv_usec);
+
+                    writeTask.countdownLatch->countDown();
+                    free(oriBuffer);
+                }
+
+            }
+            taskList.clear();
+
             gettimeofday(&t1, NULL);
             duration += (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
-
-            gettimeofday(&endTime, NULL);
-            printf("[CheckPoint:write] InitTime:%lu, EndTime:%lu\n",
-                   initTime.tv_sec * 1000000 + initTime.tv_usec, endTime.tv_sec * 1000000 + endTime.tv_usec);
-
-            writeTask.countdownLatch->countDown();
-            free(oriBuffer);
-          }
-
         }
-        taskList.clear();
-
-        gettimeofday(&t1, NULL);
-        duration += (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
-      }
     }
 
     FileOperator *logicFileOperator;
