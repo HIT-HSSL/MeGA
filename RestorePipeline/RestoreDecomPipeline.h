@@ -19,6 +19,7 @@ public:
         taskList.push_back(restoreTask);
         taskAmount++;
         condition.notify();
+        return 0;
     }
 
     ~RestoreDecomPipeline() {

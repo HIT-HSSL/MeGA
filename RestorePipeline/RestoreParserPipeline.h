@@ -34,6 +34,7 @@ public:
         taskList.push_back(restoreParseTask);
         taskAmount++;
         condition.notify();
+        return 0;
     }
 
     ~RestoreParserPipeline() {

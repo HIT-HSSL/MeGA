@@ -15,7 +15,7 @@ extern std::string ClassFileAppendPath;
 DEFINE_uint64(CacheSize,
               128, "CappingThreshold");
 
-uint64_t TotalSizeThreshold = FLAGS_CacheSize * 4 * 1024 * 1024;
+uint64_t TotalSizeThreshold = FLAGS_CacheSize * ContainerSize;
 
 int UpdateScore = 2;
 
@@ -126,7 +126,7 @@ public:
     BaseCache2() : totalSize(0), index(0), cacheMap(65536), write(0), read(0) {
         preloadBuffer = (uint8_t *) malloc(PreloadSize);
         decompressBuffer = (uint8_t *) malloc(PreloadSize);
-        TotalSizeThreshold = FLAGS_CacheSize * 4 * 1024 * 1024;
+        TotalSizeThreshold = FLAGS_CacheSize * ContainerSize;
     }
 
     void setCurrentVersion(uint64_t verison) {

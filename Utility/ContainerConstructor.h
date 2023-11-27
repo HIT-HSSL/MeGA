@@ -77,10 +77,12 @@ public:
       MutexLockGuard mutexLockGuard(mutexLock);
       taskList.push_back(con);
       taskAmount++;
+      return 0;
     }
 
     int notify() {
       condition.notify();
+      return 0;
     }
 
     int getContainer(uint64_t c, uint8_t *buffer, uint64_t *length) {
@@ -151,6 +153,7 @@ public:
       taskList.push_back(con);
       taskAmount++;
       condition.notify();
+      return 0;
     }
 
     ~OfflineWriter() {
@@ -217,6 +220,7 @@ public:
       taskList.push_back(con);
       taskAmount++;
       condition.notify();
+      return 0;
     }
 
     ~OfflineCompressor() {
@@ -325,11 +329,13 @@ private:
       memcpy(con->buffer, writeBuffer.buffer, writeBuffer.used);
       offlineCompressor.addTask(con);
       offlineReleaser.addTask(con);
+      return 0;
     }
 
     int prepareNew() {
       containerCounter++;
       writeBuffer.clear();
+      return 0;
     }
 
     WriteBuffer writeBuffer;

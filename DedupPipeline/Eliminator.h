@@ -45,6 +45,8 @@ public:
         GlobalMetadataManagerPtr->similarityTableMerge();
         printf("Similarity Feature Tables have been updated..\n");
         printf("finish, the earliest version has been eliminated..\n");
+
+        return 0;
     }
 
 private:

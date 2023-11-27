@@ -27,7 +27,7 @@ public:
         receiceList.push_back(dedupTask);
         taskAmount++;
         condition.notifyAll();
-
+        return 0;
     }
 
     ~HashingPipeline() {

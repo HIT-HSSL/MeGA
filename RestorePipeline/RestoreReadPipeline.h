@@ -33,6 +33,7 @@ public:
         taskList.push_back(restoreTask);
         taskAmount++;
         condition.notify();
+        return 0;
     }
 
     ~RestoreReadPipeline() {
@@ -140,7 +141,7 @@ private:
                 GlobalRestoreDecomPipelinePtr->addTask(restoreParseTask);
             }
         }
-
+        return 0;
     }
 
 
@@ -179,6 +180,7 @@ private:
             restoreParseTask->index = column;
             GlobalRestoreDecomPipelinePtr->addTask(restoreParseTask);
         }
+        return 0;
     }
 
     int readFromAppendCategoryFile(uint64_t classId, uint64_t column) {
@@ -218,6 +220,7 @@ private:
             restoreParseTask->index = column;
             GlobalRestoreDecomPipelinePtr->addTask(restoreParseTask);
         }
+        return 0;
     }
 
 

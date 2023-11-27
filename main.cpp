@@ -97,6 +97,7 @@ int do_arrangement() {
     };
     GlobalArrangementReadPipelinePtr->addTask(&arrangementTask);
     arrangementLatch.wait();
+    return 0;
 }
 
 int do_delete() {
@@ -106,6 +107,7 @@ int do_delete() {
     Eliminator eliminator;
     eliminator.run(TotalVersion);
     TotalVersion--;
+    return 0;
 }
 
 int main(int argc, char **argv) {

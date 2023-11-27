@@ -34,6 +34,7 @@ public:
         receiveList.push_back(writeTask);
         taskAmount++;
         condition.notify();
+        return 0;
     }
 
     int getContainer(uint64_t s, uint64_t e, uint64_t c, uint8_t *buffer, uint64_t *length) {

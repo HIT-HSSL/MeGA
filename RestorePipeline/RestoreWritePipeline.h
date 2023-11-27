@@ -25,6 +25,7 @@ public:
         taskList.push_back(task);
         taskAmount++;
         condition.notify();
+        return 0;
     }
 
     ~FileFlusher() {
@@ -81,6 +82,7 @@ public:
         taskList.push_back(restoreWriteTask);
         taskAmount++;
         condition.notify();
+        return 0;
     }
 
     ~RestoreWritePipeline() {
@@ -99,6 +101,7 @@ public:
         if (fileOperator) {
             fileOperator->trunc(size);
         }
+        return 0;
     }
 
     uint64_t getTotalSize() {

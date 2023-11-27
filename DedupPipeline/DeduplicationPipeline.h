@@ -46,6 +46,7 @@ public:
         receiveList.push_back(dedupTask);
         taskAmount++;
         condition.notifyAll();
+        return 0;
     }
 
     ~DeduplicationPipeline() {

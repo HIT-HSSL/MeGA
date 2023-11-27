@@ -29,6 +29,7 @@ public:
         taskList.push_back(arrangementTask);
         taskAmount++;
         condition.notify();
+        return 0;
     }
 
     ~ArrangementReadPipeline() {
