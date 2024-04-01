@@ -185,7 +185,7 @@ public:
         ContainerCacheEntry &newContainerCache = cacheMap[cacheID];
         cacheMap[cacheID].lastVisit = index;
         lruList[index] = cacheID;
-      printf("[Reload] cid:%lu, lastVisit: %lu\n", cacheID, index);
+      //printf("[Reload] cid:%lu, lastVisit: %lu\n", cacheID, index);
         index++;
 
         while (leftLength > sizeof(BlockHeader) &&
@@ -288,7 +288,7 @@ public:
         cacheMap[cacheID].move(currentContainer);
         currentContainer.clear();
         cacheMap[cacheID].lastVisit = index;
-        printf("[New] cid:%lu, lastVisit: %lu\n", cacheID, index);
+        //printf("[New] cid:%lu, lastVisit: %lu\n", cacheID, index);
 
         lruList[index] = cacheID;
         index++;
@@ -301,7 +301,7 @@ public:
         while (items > TotalSizeThreshold) {
             auto iterLru = lruList.begin();
             assert(iterLru != lruList.end());
-            printf("[Eliminate] cid:%lu, lastvisit: %lu\n", iterLru->second, iterLru->first);
+            //printf("[Eliminate] cid:%lu, lastvisit: %lu\n", iterLru->second, iterLru->first);
             auto iterCache = cacheMap.find(iterLru->second);
             assert(iterCache != cacheMap.end());
             totalSize -= iterCache->second.totalSize;
@@ -318,10 +318,10 @@ private:
         cacheMap[cid].score++;
         if (cacheMap[cid].score > UpdateScore) {
             cacheMap[cid].score = 0;
-        printf("[Fresh old] cid:%lu, lastVisit: %lu\n", cid, cacheMap[cid].lastVisit);
+        //printf("[Fresh old] cid:%lu, lastVisit: %lu\n", cid, cacheMap[cid].lastVisit);
             auto iter_l = lruList.find(cacheMap[cid].lastVisit);
             lruList[index] = iter_l->second;
-        printf("[Fresh new] cid:%lu, old: %lu, new: %lu\n", iter_l->second, cacheMap[cid].lastVisit, index);
+        //printf("[Fresh new] cid:%lu, old: %lu, new: %lu\n", iter_l->second, cacheMap[cid].lastVisit, index);
             lruList.erase(iter_l);
             cacheMap[cid].lastVisit = index;
             index++;
