@@ -15,7 +15,7 @@ extern std::string ClassFileAppendPath;
 DEFINE_uint64(CacheSize,
               128, "CappingThreshold");
 
-uint64_t TotalSizeThreshold = FLAGS_CacheSize * ContainerSize;
+uint64_t TotalSizeThreshold = FLAGS_CacheSize;
 
 int UpdateScore = 2;
 
@@ -126,7 +126,7 @@ public:
     BaseCache2() : totalSize(0), index(0), cacheMap(65536), write(0), read(0) {
         preloadBuffer = (uint8_t *) malloc(PreloadSize);
         decompressBuffer = (uint8_t *) malloc(PreloadSize);
-        TotalSizeThreshold = FLAGS_CacheSize * ContainerSize;
+        TotalSizeThreshold = FLAGS_CacheSize;
     }
 
     void setCurrentVersion(uint64_t verison) {
@@ -205,6 +205,11 @@ public:
         gettimeofday(&t1, NULL);
         loadingTime += (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
         write += newContainerCache.totalSize;
+
+        totalSize += newContainerCache.totalSize;
+        items++;
+
+        checkThreshold();
     }
 
     int addRecentRecord(const SHA1FP &sha1Fp, uint8_t *buffer, uint64_t length, const SimilarityFeatures &features) {
@@ -289,7 +294,7 @@ public:
     }
 
     void checkThreshold() {
-        while (totalSize > TotalSizeThreshold) {
+        while (items > TotalSizeThreshold) {
             auto iterLru = lruList.begin();
             assert(iterLru != lruList.end());
             auto iterCache = cacheMap.find(iterLru->second);
