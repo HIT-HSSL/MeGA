@@ -308,9 +308,9 @@ private:
                                               entry.similarityFeatures);
                     lastCategoryLength += entry.length + sizeof(BlockHeader);
                     if (lastCategoryLength >= ContainerSize) {
-                        lastCategoryLength = 0;
                         currentCID++;
                         baseCache.endCurrentContainer();
+                        lastCategoryLength = 0;
                     }
                     afterDelta += entry.length;
                 }
