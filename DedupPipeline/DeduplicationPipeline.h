@@ -242,6 +242,9 @@ private:
                         if (!r) {
                             baseCache.loadBaseChunks(entry.basePos);
                             r = baseCache.getRecord(&entry.basePos, &tempBlockEntry);
+                            if(r == 0){
+                                printf("Cate:%u, cid:%lu\n", entry.basePos.CategoryOrder, entry.basePos.cid);
+                            }
                             assert(r);
                         }
                     }

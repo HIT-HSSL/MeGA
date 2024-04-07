@@ -152,6 +152,8 @@ public:
         gettimeofday(&t0, NULL);
         char pathBuffer[256];
         uint64_t targetCategory;
+        uint64_t readSize = 0;
+        int r = 0;
 
         if (basePos.CategoryOrder == currentVersion) {
             sprintf(pathBuffer, ClassFilePath.data(), basePos.CategoryOrder, currentVersion, basePos.cid);
@@ -162,15 +164,22 @@ public:
             sprintf(pathBuffer, ClassFileAppendPath.data(), 1, currentVersion - 1, basePos.cid);
         }
 
-        uint64_t readSize = 0;
+
         {
             FileOperator basefile(pathBuffer, FileOpenType::Read);
-            readSize = basefile.read(decompressBuffer, PreloadSize);
-            basefile.releaseBufferedData();
+            if(basefile.getStatus() == -1){
+                r = GlobalWriteFilePipelinePtr->getContainer(basePos.CategoryOrder, basePos.CategoryOrder, basePos.cid, preloadBuffer, &readSize);
+                assert(r);
+                printf("[cid:%lu] Try get from writer success\n", basePos.cid);
+            }else{
+                readSize = basefile.read(decompressBuffer, PreloadSize);
+                //printf("[cid:%lu] readsize:%lu\n", basePos.cid, readSize);
+                basefile.releaseBufferedData();
 
-            readSize = ZSTD_decompress(preloadBuffer, PreloadSize, decompressBuffer, readSize);
-            assert(!ZSTD_isError(readSize));
-            assert(basePos.length <= readSize);
+                readSize = ZSTD_decompress(preloadBuffer, PreloadSize, decompressBuffer, readSize);
+                assert(!ZSTD_isError(readSize));
+                assert(basePos.length <= readSize);
+            }
         }
 
         BlockHeader *headPtr;

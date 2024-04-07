@@ -96,8 +96,7 @@ public:
         }
         last = item->cid;
       }
-      if (c < last) return 0;
-      if (c > last) return -1;
+      return 0;
     }
 
     ~OfflineReleaser() {
