@@ -166,12 +166,13 @@ public:
 
 
         {
-            FileOperator basefile(pathBuffer, FileOpenType::Read);
-            if(basefile.getStatus() == -1){
+            r = GlobalWriteFilePipelinePtr->getContainer(basePos.CategoryOrder, basePos.CategoryOrder, basePos.cid, preloadBuffer, &readSize);
+            if(r){
                 r = GlobalWriteFilePipelinePtr->getContainer(basePos.CategoryOrder, basePos.CategoryOrder, basePos.cid, preloadBuffer, &readSize);
-                assert(r);
-                printf("[cid:%lu] Try get from writer success\n", basePos.cid);
+                //printf("[cid:%lu] Try get from writer success\n", basePos.cid);
             }else{
+                FileOperator basefile(pathBuffer, FileOpenType::Read);
+                //printf("[cid:%lu] try get from disk\n", basePos.cid);
                 readSize = basefile.read(decompressBuffer, PreloadSize);
                 //printf("[cid:%lu] readsize:%lu\n", basePos.cid, readSize);
                 basefile.releaseBufferedData();

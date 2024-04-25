@@ -126,6 +126,8 @@ private:
           break;
         }
 
+        //printf("[Release] release:%lu\n", task->cid);
+
         free(task->buffer);
         free(task->compressed);
         delete task;
@@ -185,6 +187,7 @@ private:
         FileOperator *writer = new FileOperator(pathBuffer, FileOpenType::Write);
         writer->write(task->compressed, task->compressedLength);
         writer->fsync();
+        //printf("[Writer] write:%lu\n", task->cid);
         writer->releaseBufferedData();
         delete writer;
 
