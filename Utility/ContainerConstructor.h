@@ -94,8 +94,7 @@ public:
             }
             last = item->cid;
         }
-        if (c < last) return 0;
-        if (c > last) return -1;
+        return 0;
     }
 
     ~OfflineReleaser() {
@@ -112,7 +111,7 @@ private:
             {
                 MutexLockGuard mutexLockGuard(mutexLock);
                 auto iter = taskList.begin();
-                while (!taskAmount || (*iter != NULL && !(*iter)->written)) {
+                while (iter == taskList.end() || ((*iter)->written == false && *iter != NULL)) {
                     condition.wait();
                     iter = taskList.begin();
                 }
