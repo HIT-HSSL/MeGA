@@ -111,7 +111,7 @@ private:
             {
                 MutexLockGuard mutexLockGuard(mutexLock);
                 auto iter = taskList.begin();
-                while (iter == taskList.end() || ((*iter)->written == false && *iter != NULL)) {
+                while (iter == taskList.end() || (*iter != NULL && (*iter)->written == false )) {
                     condition.wait();
                     iter = taskList.begin();
                 }
